@@ -1,0 +1,46 @@
+--- a/wrapper/vst2_wrap.c	2026-09-29 21:52:02
++++ b/wrapper/vst2_wrap.c	2026-09-29 21:52:18
+@@ -22,6 +22,9 @@
+ #ifndef HAS_LFO_BPM
+ #define HAS_LFO_BPM 0 /* 1: pass the host tempo to the DSP as "lfo_bpm" */
+ #endif
++#ifndef HAS_HOST_TRANSPORT
++#define HAS_HOST_TRANSPORT 0 /* 1: pass "<playing 0/1> <ppqPos> <tempo>" to the DSP as "host_transport" every host block */
++#endif
+ #ifndef MODULE_DIR
+ #define MODULE_DIR NULL /* set via vst.json "defines" for a DSP that reads its own files
+                           * (ROMs, etc.) from "<module_dir>/..." (see jv880's create_instance) */
+@@ -74,6 +77,7 @@
+     effGetVendorVersion = 49, effCanDo = 51, effGetVstVersion = 58,
+ };
+ enum { audioMasterAutomate = 0, audioMasterGetTime = 7, audioMasterUpdateDisplay = 42, kVstTempoValid = 1 << 10 };
++enum { kVstTransportPlaying = 1 << 1, kVstPpqPosValid = 1 << 9 };
+ enum { effFlagsCanReplacing = 1 << 4, effFlagsProgramChunks = 1 << 5, effFlagsIsSynth = 1 << 8 };
+ 
+ /* ---- per-instance state ------------------------------------------------- */
+@@ -209,6 +213,17 @@
+         snprintf(buf, sizeof buf, "%.2f", w->bpm);
+         g_api->set_param(w->dsp, "lfo_bpm", buf);
+     }
++}
++
++/* Transport for DSPs that follow the song position (clocked sequencers, synced modulation). Sent before the
++ * block is rendered, so ppqPos is the position of the host block's first frame. */
++static void update_transport(wrap_t *w) {
++    VstTimeInfo *ti = (VstTimeInfo *)w->master(&w->fx, audioMasterGetTime, 0, kVstPpqPosValid | kVstTempoValid, 0, 0);
++    char buf[64];
++    if (!ti) return;
++    snprintf(buf, sizeof buf, "%d %.6f %.4f", (ti->flags & kVstTransportPlaying) ? 1 : 0,
++             (ti->flags & kVstPpqPosValid) ? ti->ppqPos : -1.0, (ti->flags & kVstTempoValid) ? ti->tempo : 0.0);
++    g_api->set_param(w->dsp, "host_transport", buf);
+ }
+ 
+ /* accumulate=1 is VST2's legacy process(), which must ADD to the output buffers; hosts here call
+@@ -229,6 +244,7 @@
+ static void housekeeping(AEffect *e, int32_t n) {
+     wrap_t *w = e->object;
+     if (HAS_LFO_BPM) update_tempo(w);
++    if (HAS_HOST_TRANSPORT) update_transport(w);
+     /* A trigger param (e.g. Generate) fired: tell the host it is back to 0 so
+      * buttons bound to it drop their highlight. Done here, not inside
+      * setParameter, so the host is not re-entered from its own call. */

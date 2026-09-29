@@ -1,0 +1,44 @@
+{
+  "name": "Clouds",
+  "vendor": "Padbangers",
+  "uid": "PbCl",
+  "version": 1000,
+  "so": "clouds_fx.so",
+  "params": "params.json",
+  "layout": "layout.conf",
+  "art": "html",
+  "effect": true,
+  "defines": {
+    "OPTION_QLINK_ZONES": 1
+  },
+  "build": {
+    "root": ".",
+    "sources": [
+      "src/engine.cc",
+      "src/midi_in.cc",
+      "third_party/parasites/clouds/dsp/correlator.cc",
+      "third_party/parasites/clouds/dsp/granular_processor.cc",
+      "third_party/parasites/clouds/dsp/mu_law.cc",
+      "third_party/parasites/clouds/dsp/pvoc/frame_transformation.cc",
+      "third_party/parasites/clouds/dsp/pvoc/phase_vocoder.cc",
+      "third_party/parasites/clouds/dsp/pvoc/stft.cc",
+      "third_party/parasites/clouds/resources.cc",
+      "third_party/parasites/stmlib/dsp/atan.cc",
+      "third_party/parasites/stmlib/dsp/units.cc",
+      "third_party/parasites/stmlib/utils/random.cc"
+    ],
+    "cflags": [
+      "-DTEST",
+      "-Ithird_party/parasites",
+      "-Ithird_party/mpc-vst-plugins/wrapper",
+      "-Wno-unused-parameter",
+      "-Wno-narrowing",
+      "-Wno-infinite-recursion",
+      "-Wno-unused-local-typedefs"
+    ],
+    "libs": [
+      "-lm",
+      "-ldl"
+    ]
+  }
+}

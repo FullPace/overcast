@@ -1,0 +1,98 @@
+# Clouds (Parasites) — runbook
+
+Everything needed to build, deploy and continue the Clouds insert effect lives in this folder. Read this first;
+`README.md` says what the plugin is. The Mac/Docker setup and the device basics are shared with Marbles
+(`../marbles/CLAUDE.md`, "Mac prerequisites" and "Device facts").
+
+## What this is
+
+Mutable Instruments Clouds with Matthias Puech's Parasites firmware (MIT, vendored in `third_party/parasites/`) as a
+native MPC OS insert effect, built with the sd88me/mpc-vst-plugins framework (submodule). Six modes: Granular,
+Stretch, Looping Delay, Spectral, Oliverb, Resonestor — one MPC tab each.
+
+Status (2026-09-30), confirmed by the user on the device: sound in all modes, the tabs switch the mode, per-mode
+names, Q-Links with option zones, In/Out Gain + limiter, MIDI in via the "Clouds N" port (connected, notes arriving
+not yet confirmed by ear). Not done: CPU bench, per-tab independent settings (discussed, not decided).
+
+## Folder layout
+
+| Path | What |
+|---|---|
+| `src/engine.cc` | Replaces the firmware main loop: params → GranularProcessor, page markers, gain, limiter |
+| `src/midi_in.{h,cc}` | Our own ALSA seq input port per instance (MPC sends no MIDI to insert effects) |
+| `params.json` | Parameter list = VST order. Nothing released yet; once shared, only append |
+| `skin/gen_layout.py` | Writes `layout.conf` (don't edit that by hand): tabs, knobs, name tags, Q-Links |
+| `skin/post_build.py` | Run by `build.sh` on the built skin: strips MPC's own name labels (see "Skin") |
+| `skin/*.png`, `skin/clouds.css` | Knob images, name tags, blank marker image, colours |
+| `skin/background_template.png` | 1280×628 render of the current page, for the user designing a background |
+| `patches/` | Framework wrapper patches: host transport (unused here) and option Q-Link zones |
+| `test/fx_test.cc` | Native effect test. Its last run found an out-of-bounds read (fixed by kMaxKnob); not re-run since |
+
+## Build and deploy
+
+```sh
+colima start                  # outside the Bash sandbox; the user's VPN must be off for image pulls
+./build.sh                    # -> build/clouds_fx.so + skin (runs skin/post_build.py)
+./deploy.sh                   # copy to the MPC; --yes also registers it (restarts the app)
+python3 skin/gen_layout.py    # after changing the layout generator, then build again
+```
+
+Skin preview: see `../marbles/CLAUDE.md` (use the `mpc-vst-html-art` image; stage is `~/.cache/clouds-build`).
+
+**Always check that MPC runs the new build.** MPC keeps a plugin's `.so` loaded while any instance exists (undo
+history included), so "remove and insert again" often keeps the old code. `deploy.sh` compares the inode MPC has
+mapped with the new file and says when the app must be restarted (ask the user to save first). Several rounds of
+"fixes" went nowhere on 2026-09-30 because the device still ran an old build.
+
+## How it works (what was learned on the device)
+
+- **Effects get no MIDI.** MPC OS sends no MIDI to insert effects (verified: no event reached `Midi()`). Each
+  instance opens an ALSA sequencer client "Clouds N" with a writable port "MIDI In"; a MIDI track picks it as its
+  output. The caps must be `WRITE | SUBS_WRITE` = bits 1 and **6** — with bit 5 (SUBS_READ) MPC listed it only as
+  an input. libasound is `dlopen`ed (already in the MPC process), so the build needs no ALSA headers.
+- **Modes as MPC tabs.** A tab switch changes no parameter; MPC only reads the new page's **Q-Link parameters**
+  (Q-Links follow the page). Readouts and ordinary controls are not re-read on a switch. So each tab carries a
+  marker param `page_<m>` in its Q-Link set (in MIDI Pitch's slot, shown as "Mode: <name>") plus an invisible knob
+  for it. Reading a marker switches the mode — unless several different markers are read within 0.2 s: MPC reads
+  every param when the plugin is inserted, and that burst is ignored. Consequence: after inserting/loading, the
+  saved mode stays active while MPC shows the first tab. The engine logs `Clouds: page N shown` / `mode a -> b`
+  to the MPC journal.
+- **Zeroed memory.** Clouds' objects are firmware globals; `GranularProcessor::Init()` never sets `silence_`, so an
+  instance in uninitialised memory can stay silent forever. Instances are `calloc`ed.
+- **Knob range.** The module's pots never reach 1.0 (65535/65536); the dry/wet crossfade reads one entry past its
+  table at exactly 1.0. Continuous params are clamped to `kMaxKnob`.
+- **Sample rate.** Runs at the MPC's 44.1 kHz instead of 32 kHz: pitch is right, buffers and time constants shrink
+  by 32/44.1.
+- **Blocks.** Each 128-frame MPC block runs as four 32-frame blocks, each followed by `Prepare()` (the module's
+  main-loop work: FFT frames in Spectral, WSOLA correlation).
+- **Gain.** In Gain (dB, soft knee before the processor), Out Gain (default +6 dB), then a stereo-linked peak
+  limiter at −1 dBFS (~150 ms release) and the soft knee.
+- **MIDI mapping** (as the module's TRIG and V/OCT): note-on = trigger, held notes = gate, note − Root Note added
+  to Pitch in semitones and held after note-off (like a CV). Melodic playing: Freeze on, Density at 12 o'clock.
+
+## Skin
+
+- One tab per mode, generated by `skin/gen_layout.py`: 3×3 knobs (Position Size Texture / Density Pitch Spread /
+  Blend Feedback Reverb), a gain column (In/Out Gain), right column Freeze, Reverse, Trigger, Quality; row 4 MIDI
+  Pitch and Root Note. Names per mode come from the Clouds "Secrets" page and the Parasites manual (table in
+  `gen_layout.py` and `kNames` in `engine.cc`, the latter for MPC's Q-Link display via `dynamic_name`).
+- The look follows the module (colours sampled from the panel artwork in the Parasites repo,
+  `clouds/hardware_design/panel/clouds.ai`, which is a PDF): raspberry `#c83d58`, teal `#009797`, ink `#1a1919`;
+  knobs drawn in `skin/` as black ribbed bodies with coloured caps. POSITION/DENSITY/IN GAIN raspberry,
+  SIZE/TEXTURE teal (white text on tags); white knobs get plain dark names, no tag. The user asked for no
+  ornaments, only the panel colour.
+- MPC draws each control's name itself, in one global colour, and would show it on top of the baked per-tab names.
+  `post_build.py` removes those "Name" labels from knob/toggle components and strips the marker knob down to its
+  (blank) image.
+- Q-Links (MPC X 4×4, listed column by column): Position Density Blend Trigger | Size Pitch Feedback Mode-marker |
+  Texture Spread Reverb Root | Freeze Reverse Quality OutGain. Option params use Q-Link zones (patch 0002).
+- A user-designed background: 1280×628 px PNG/JPG as `skin/background.png`, to be added as the first `art` line of
+  each tab (`art file=skin/background.png fit=cover`). Not added yet.
+
+## Next steps / open
+
+- Per-tab independent settings (each mode remembering its own knobs) — the user asked why Granular settings
+  seemed to affect other modes; that turned out to be the stale build. Shared knobs are how the module works.
+- CPU bench (`third_party/mpc-vst-plugins/tools/bench.sh`), especially Spectral.
+- Confirm by ear that MIDI notes transpose/trigger.
+- 32 kHz resampling if the shorter buffer matters.

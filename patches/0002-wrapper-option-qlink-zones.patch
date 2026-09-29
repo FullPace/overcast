@@ -1,0 +1,44 @@
+--- a/wrapper/vst2_wrap.c	2026-09-29 23:15:05
++++ b/wrapper/vst2_wrap.c	2026-09-29 23:15:05
+@@ -22,6 +22,10 @@
+ #ifndef HAS_LFO_BPM
+ #define HAS_LFO_BPM 0 /* 1: pass the host tempo to the DSP as "lfo_bpm" */
+ #endif
++#ifndef OPTION_QLINK_ZONES
++#define OPTION_QLINK_ZONES 0 /* 1: a Q-Link turns an option param through zones (2 options: lower half off, upper half on)
++                              * instead of stepping one option per nudge, which makes toggles flicker on a turning knob */
++#endif
+ #ifndef HAS_HOST_TRANSPORT
+ #define HAS_HOST_TRANSPORT 0 /* 1: pass "<playing 0/1> <ppqPos> <tempo>" to the DSP as "host_transport" every host block */
+ #endif
+@@ -141,6 +145,12 @@
+     if (PARAMS[i].int_display && !PARAMS[i].nopts && PARAMS[i].max > PARAMS[i].min && w->shadow[i] >= 0) {
+         float half = 0.5f / (PARAMS[i].max - PARAMS[i].min) + 1e-4f;
+         if (fabsf(v - w->shadow[i]) <= half) return w->shadow[i];
++        w->shadow[i] = -1;
++    }
++    /* Option zones: the same idea, the host keeps its knob position while the DSP holds that zone's option. */
++    if (OPTION_QLINK_ZONES && PARAMS[i].nopts > 1 && w->shadow[i] >= 0) {
++        int n = PARAMS[i].nopts - 1;
++        if (lroundf(w->shadow[i] * n) == lroundf(v * n)) return w->shadow[i];
+         w->shadow[i] = -1;
+     }
+     return v;
+@@ -180,7 +190,7 @@
+         w->need_update_display = 1;
+         return;
+     }
+-    if (p->nopts > 1) {
++    if (p->nopts > 1 && !OPTION_QLINK_ZONES) {
+         /* A value on an option (button press, preset, automation) selects it. A value
+          * between options is a Q-Link/encoder nudge from the current one: step one
+          * option that way, else small nudges round back and never change state. */
+@@ -196,7 +206,7 @@
+     }
+     norm_to_str(p, n, buf, sizeof buf);
+     g_api->set_param(w->dsp, PARAMS[i].key, buf);
+-    w->shadow[i] = (p->int_display && !p->nopts) ? clamp01(n) : -1;
++    w->shadow[i] = ((p->int_display && !p->nopts) || (OPTION_QLINK_ZONES && p->nopts > 1)) ? clamp01(n) : -1;
+     if (PARAMS[i].momentary && n > 0.5f) w->holdFrames[i] = PARAMS[i].hold_ms > 0 ? (int)(PARAMS[i].hold_ms * 44.1f) : 1;
+     if (!nudge) popup_picked(w->open, w->holdFrames, i);   /* a list pick closes it; a Q-Link nudge doesn't */
+     w->need_update_display = 1;   /* deferred to processReplacing(), see the step_target branch above */

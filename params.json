@@ -1,0 +1,240 @@
+{
+  "name": "Clouds",
+  "params": [
+    {
+      "key": "mode",
+      "name": "Mode",
+      "options": [
+        "Granular",
+        "Stretch",
+        "Looping Delay",
+        "Spectral",
+        "Oliverb",
+        "Resonestor"
+      ],
+      "default": 0
+    },
+    {
+      "key": "quality",
+      "name": "Quality",
+      "options": [
+        "16-bit Stereo",
+        "16-bit Mono",
+        "8-bit Stereo",
+        "8-bit Mono"
+      ],
+      "default": 0
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_name": true
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_name": true
+    },
+    {
+      "key": "pitch",
+      "name": "Pitch",
+      "min": -24.0,
+      "max": 24.0,
+      "unit": "st",
+      "default": 0.0,
+      "dynamic_name": true
+    },
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.7,
+      "dynamic_name": true
+    },
+    {
+      "key": "texture",
+      "name": "Texture",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_name": true
+    },
+    {
+      "key": "dry_wet",
+      "name": "Blend",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_name": true
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_name": true
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_name": true
+    },
+    {
+      "key": "reverb",
+      "name": "Reverb",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_name": true
+    },
+    {
+      "key": "freeze",
+      "name": "Freeze",
+      "options": [
+        "Off",
+        "On"
+      ],
+      "default": 0,
+      "dynamic_name": true
+    },
+    {
+      "key": "reverse",
+      "name": "Reverse",
+      "options": [
+        "Off",
+        "On"
+      ],
+      "default": 0
+    },
+    {
+      "key": "trigger",
+      "name": "Trigger",
+      "min": 0.0,
+      "max": 1.0,
+      "momentary": true,
+      "type": "trigger",
+      "default": 0.0,
+      "dynamic_name": true
+    },
+    {
+      "key": "midi_pitch",
+      "name": "MIDI Pitch",
+      "options": [
+        "Off",
+        "On"
+      ],
+      "default": 1
+    },
+    {
+      "key": "midi_root",
+      "name": "Root Note",
+      "min": 0,
+      "max": 127,
+      "display": "int",
+      "default": 60
+    },
+    {
+      "key": "page_0",
+      "name": "Mode: Granular",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_display": true
+    },
+    {
+      "key": "page_1",
+      "name": "Mode: Stretch",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_display": true
+    },
+    {
+      "key": "page_2",
+      "name": "Mode: Looping Delay",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_display": true
+    },
+    {
+      "key": "page_3",
+      "name": "Mode: Spectral",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_display": true
+    },
+    {
+      "key": "page_4",
+      "name": "Mode: Oliverb",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_display": true
+    },
+    {
+      "key": "page_5",
+      "name": "Mode: Resonestor",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0,
+      "dynamic_display": true
+    },
+    {
+      "key": "in_gain",
+      "name": "In Gain",
+      "min": -18.0,
+      "max": 18.0,
+      "unit": "dB",
+      "default": 0.0
+    },
+    {
+      "key": "out_gain",
+      "name": "Out Gain",
+      "min": -12.0,
+      "max": 24.0,
+      "unit": "dB",
+      "default": 6.0
+    }
+  ],
+  "sections": [
+    {
+      "label": "Clouds",
+      "keys": [
+        "position",
+        "size",
+        "pitch",
+        "density",
+        "texture",
+        "freeze",
+        "reverse",
+        "trigger"
+      ]
+    },
+    {
+      "label": "Blend",
+      "keys": [
+        "dry_wet",
+        "spread",
+        "feedback",
+        "reverb",
+        "mode",
+        "quality",
+        "midi_pitch",
+        "midi_root"
+      ]
+    }
+  ]
+}
