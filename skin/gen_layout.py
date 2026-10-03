@@ -45,6 +45,7 @@ RIGHT = 950           # the 4th Q-Link row's other controls: Quality, MIDI Pitch
 TAG_W, TAG_H = 132, 26
 TOGGLE_H = 26
 NAME_GAP = 14         # knob edge (r) to the centre of its name
+LFO_KNOB_R = 22       # LFO rate knobs: post_build.py moves their value up into the (unused) name slot
 
 # Q-Links: listed column by column, top to bottom (shadow_skin maps the list onto MPC's 4x4 grid that way).
 # Rows as the user asked: Position Size Texture In Gain / Density Pitch Spread Out Gain /
@@ -120,7 +121,8 @@ def main_page():
 def mod_page():
     L = ["[tab MODULATION]", BACKGROUND]
     # left: two envelopes and two LFOs, one row each, the section name in front of the row
-    rows = [226, 341, 456, 571]
+    rows = [226, 341]
+    lfo_rows = [506, 611]   # 50 px lower than before: the LFO rows lost their headings
     ex = [170, 295, 420, 545]
     for e in (1, 2):
         cy = rows[e - 1]
@@ -131,14 +133,13 @@ def mod_page():
         L += [text(690, cy - 30, "TRIGGER", "1a1919", size=1.2),
               'popup cx=690 cy=%d w=124 h=36 label="" key=env%d_trig' % (cy, e)]
     for l in (1, 2):
-        cy = rows[1 + l]
+        # one compact row: shape list, sync toggle with plain text, rate knob whose value shows Hz or, synced, the
+        # note value (the engine maps the knob onto 4 bars .. 1/32); no headings, no separate sync-rate list
+        cy = lfo_rows[l - 1]
         L += [tag(55, cy, "teal", 90), text(55, cy, "LFO %d" % l, "ffffff")]
-        L += [text(205, cy - 30, "SHAPE", "1a1919", size=1.2),
-              'popup cx=205 cy=%d w=150 h=36 label="" key=lfo%d_shape' % (cy, l)]
-        L += knob("lfo%d_rate" % l, 360, cy, 24, "RATE", colour=None)
-        L += toggle("lfo%d_sync" % l, 480, cy - 8, label="SYNC")
-        L += [text(620, cy - 30, "SYNC RATE", "1a1919", size=1.2),
-              'popup cx=620 cy=%d w=124 h=36 label="" key=lfo%d_div' % (cy, l)]
+        L.append('popup cx=205 cy=%d w=150 h=36 label="" key=lfo%d_shape' % (cy, l))
+        L += toggle("lfo%d_sync" % l, 345, cy - 8, colour=None, label="SYNC")
+        L.append('knob cx=465 cy=%d r=%d label="" key=lfo%d_rate img=skin/knob_white.png' % (cy - 10, LFO_KNOB_R, l))
     # right: the matrix
     x0 = 770
     L += [text(x0 + 100, 208, "SOURCE", "636463", size=1.2), text(x0 + 270, 208, "DESTINATION", "636463", size=1.2),

@@ -11,6 +11,8 @@ import json
 import os
 import sys
 
+LFO_KNOB_R = 22   # gen_layout.py's LFO rate knob radius
+
 def main(skins):
     path = os.path.join(skins, "TUI.json")
     tui = json.load(open(path))
@@ -33,6 +35,17 @@ def main(skins):
                         if cd.get("type") == "Label" and cd.get("data", {}).get("type") == "Value":
                             c["bounds"]["bounds"] = "0 60 130 22"
                             moved += 1
+                if strips and strips[0].startswith("sh_knob_r%d_" % LFO_KNOB_R):
+                    # LFO rate knobs carry no name: their value moves up right under the knob
+                    knob = [c for c in comps if c.get("componentData", {}).get("type") == "Knob"][0]
+                    size = int(knob["bounds"]["bounds"].split()[3])           # s = 2r + 10
+                    name_y = size // 2 + (size - 10) // 2 + 2
+                    for c in comps:
+                        cd = c.get("componentData", {})
+                        if cd.get("type") == "Label" and cd.get("data", {}).get("type") == "Value":
+                            x, y, w, h = c["bounds"]["bounds"].split()
+                            c["bounds"]["bounds"] = "%s %d %s %s" % (x, name_y, w, h)
+                            moved += 1
                 if "Knob" in kinds or "Button" in kinds or "Slider" in kinds:
                     keep = [c for c in comps if not (c.get("componentData", {}).get("type") == "Label"
                                                      and c["componentData"]["data"].get("type") == "Name")]
@@ -46,7 +59,7 @@ def main(skins):
 
     walk(tui)
     json.dump(tui, open(path, "w"))
-    print("post_build: removed %d MPC name label(s), moved %d slider value(s)" % (removed, moved))
+    print("post_build: removed %d MPC name label(s), moved %d value label(s)" % (removed, moved))
 
 
 if __name__ == "__main__":

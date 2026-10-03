@@ -366,6 +366,10 @@ void ProbeCount(const char*) { }
 void ProbeReport(int) { }
 #endif
 
+const char* const kDivisionNames[] = { "4 Bars", "2 Bars", "1 Bar", "1/2", "1/4", "1/8", "1/16", "1/32" };
+
+int LfoDivision(float rate_knob) { return Clamp(static_cast<int>(rate_knob * 7.0f + 0.5f), 0, 7); }
+
 int GetParam(void* inst, const char* key, char* buf, int buf_len) {
   const Instance* s = static_cast<const Instance*>(inst);
   ProbeCount(key);
@@ -376,7 +380,11 @@ int GetParam(void* inst, const char* key, char* buf, int buf_len) {
     for (int p = P_MOD_FIRST; p < P_SLOT_FIRST; ++p) {
       if (strlen(kParams[p].key) != key_len - 8 || strncmp(key, kParams[p].key, key_len - 8)) continue;
       float v = Clamp(s->param[p], 0.0f, 1.0f);
-      if (strstr(key, "_rate")) return snprintf(buf, buf_len, "%.2f Hz", 0.01f * powf(3000.0f, v));
+      if (strstr(key, "_rate")) {
+        int l = (p - P_LFO_FIRST) / 4;
+        if (s->param[P_LFO_FIRST + l * 4 + 2] > 0.5f) return snprintf(buf, buf_len, "%s", kDivisionNames[LfoDivision(v)]);
+        return snprintf(buf, buf_len, "%.2f Hz", 0.01f * powf(3000.0f, v));
+      }
       float sec = 0.001f * powf(10000.0f, v);
       return sec < 1.0f ? snprintf(buf, buf_len, "%d ms", static_cast<int>(sec * 1000.0f + 0.5f))
                         : snprintf(buf, buf_len, "%.1f s", sec);
@@ -409,7 +417,8 @@ const mod::Modulation& UpdateModulation(Instance* s) {
   }
   for (int l = 0; l < mod::kNumLfos; ++l) {
     const float* v = &s->param[P_LFO_FIRST + l * 4];
-    ms.lfo[l] = { static_cast<int>(v[0] + 0.5f), v[1], v[2] > 0.5f, static_cast<int>(v[3] + 0.5f) };
+    // Synced, the rate knob picks the note value (0 = 4 bars .. 1 = 1/32); lfo<n>_div is no longer on the skin.
+    ms.lfo[l] = { static_cast<int>(v[0] + 0.5f), v[1], v[2] > 0.5f, LfoDivision(v[1]) };
   }
   for (int k = 0; k < mod::kNumSlots; ++k) {
     const float* v = &s->param[P_SLOT_FIRST + k * 3];
