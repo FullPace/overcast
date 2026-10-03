@@ -2,16 +2,16 @@
 # Build the plugin with the mpc-vst-plugins pipeline (Docker; on this Mac: Colima).
 #   ./build.sh          -> build/overcast.so, build/skin/..., build/pluginlist-entry.xml
 #   ./build.sh test     -> the framework's offline host test (ASan/UBSan, native compiler)
-# The framework is a submodule; patches/ are applied to a scratch copy. Docker's file sharing is
-# unreliable on the exFAT volume this repo lives on, so the build runs in a mirror on the internal
-# disk ($STAGE) and the results are copied back to build/.
+# The framework is a submodule; patches/ are applied to a scratch copy. The build runs in a mirror on
+# the internal disk ($STAGE) and the results are copied back to build/ (Docker's file sharing is
+# unreliable on some volumes, e.g. exFAT).
 set -euo pipefail
 cd "$(dirname "$0")"
 HERE="$(pwd)"
-STAGE="${STAGE:-$HOME/.cache/clouds-build}"
+STAGE="${STAGE:-$HOME/.cache/overcast-build}"
 MV="$STAGE/port/third_party/mpc-vst-plugins"   # same relative path as the submodule, for -I
 
-git -C .. submodule update --init clouds/third_party/mpc-vst-plugins >/dev/null
+git submodule update --init third_party/mpc-vst-plugins >/dev/null
 
 mkdir -p "$STAGE/port"
 rsync -a --delete --exclude /build --exclude /third_party/mpc-vst-plugins --exclude .git "$HERE/" "$STAGE/port/"

@@ -1,0 +1,6 @@
+build/
+dist/
+test/fx_test
+test/*.dSYM
+._*
+.DS_Store

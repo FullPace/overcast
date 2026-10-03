@@ -1,8 +1,8 @@
 # Overcast (Clouds / Parasites) — runbook
 
 Everything needed to build, deploy and continue the Clouds insert effect lives in this folder. Read this first;
-`README.md` says what the plugin is. The Mac/Docker setup and the device basics are shared with Marbles
-(`../marbles/CLAUDE.md`, "Mac prerequisites" and "Device facts").
+`README.md` says what the plugin is and how users install it. This repo was split out of the developer's
+`mpc-x-hacks` repo (history kept); the CV-jack plugin Marbles CV and the CV protocol notes stay there.
 
 ## What this is
 
@@ -40,6 +40,30 @@ not yet confirmed by ear). Not done: CPU bench, per-tab independent settings (di
 | `patches/` | Framework wrapper patches: host transport (unused here) and option Q-Link zones |
 | `test/fx_test.cc` | Native effect test. Its last run found an out-of-bounds read (fixed by kMaxKnob); not re-run since |
 
+## Mac prerequisites (the developer's machine, set up 2026-09-29)
+
+Homebrew: `docker colima docker-buildx bash`. Docker runs in Colima, not Docker Desktop.
+
+- Start: `colima start` — **outside Claude's Bash sandbox**, otherwise the VM's network helper can't connect and
+  every pull times out.
+- The user's **VPN blocks the VM's internet**. Pulling images needs the VPN disconnected; building with images
+  already present works with it on.
+- `~/.colima/default/colima.yaml` mounts `/Users/cypher`, `/Volumes/Daten/Development`, `/private/tmp/claude-501`
+  (write `/Users/cypher`, not `~`).
+- ARM32 emulation is lost on every VM restart; `build.sh` re-registers it (`tonistiigi/binfmt --install arm`).
+- macOS `/bin/bash` 3.2 breaks the framework scripts; `build.sh` uses `/opt/homebrew/bin/bash`.
+- The repo lives on an exFAT volume where Docker's file sharing fails, so `build.sh` mirrors it to
+  `~/.cache/overcast-build` and copies the results back to `build/`.
+
+## Device facts (the developer's MPC X, `ssh mpcx`)
+
+- A button-remap shim loads via `/etc/ld.so.preload`; check it is still loaded after restarts:
+  `grep -c shim_remap6 /proc/$(pidof MPC)/maps` (≈7). Never put it into an `LD_PRELOAD` as well.
+- App log: `journalctl -u acvs` (the engine logs `Overcast: mode a -> b`). Crashes show as
+  `code=dumped, status=11/SEGV`.
+- BusyBox userland, no python, no curl. Settings: `/media/az01-internal/Settings/MPC/MPC.settings`.
+- 44.1 kHz, 128-frame blocks. Screenshots: `ssh mpcx "/data/hacks/drmshot /tmp/shot.png 270"`.
+
 ## Build and deploy
 
 ```sh
@@ -49,7 +73,13 @@ colima start                  # outside the Bash sandbox; the user's VPN must be
 python3 skin/gen_layout.py    # after changing the layout generator, then build again
 ```
 
-Skin preview: see `../marbles/CLAUDE.md` (use the `mpc-vst-html-art` image; stage is `~/.cache/clouds-build`).
+Skin preview (Pillow isn't installed on the Mac, so in the renderer's image):
+
+```sh
+S=~/.cache/overcast-build/port
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$S":/w -w /w mpc-vst-html-art python3 \
+  third_party/mpc-vst-plugins/tools/studio.py preview "build/skin/Padbangers - VST - Overcast/Plugin Skins" -o /w/build/preview_%d.png
+```
 
 **Always check that MPC runs the new build.** MPC keeps a plugin's `.so` loaded while any instance exists (undo
 history included), so "remove and insert again" often keeps the old code. `deploy.sh` compares the inode MPC has
