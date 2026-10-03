@@ -35,7 +35,7 @@ struct Result {
 };
 
 // 1.5 s of noise bursts (on 100 ms, off 100 ms) then 1.5 s of silence.
-Result Run(const mpc_engine_t* e, void* inst) {
+Result Run(const mpc_engine_t* e, void* inst, int freeze_at_block = -1) {
   int16_t in[kBlock * 2], out[kBlock * 2];
   Result r = { 0, 0, 0, 0, 0 };
   double e_sig = 0, e_tail = 0, total_us = 0;
@@ -52,6 +52,7 @@ Result Run(const mpc_engine_t* e, void* inst) {
       in[i * 2] = v;
       in[i * 2 + 1] = v;
     }
+    if (b == freeze_at_block) e->set_param(inst, "freeze", "1");   // lock the buffer while the noise plays
     double t0 = NowUs();
     e->process(inst, in, out, kBlock);
     double us = NowUs() - t0;
@@ -104,9 +105,7 @@ int main() {
   // Freeze holds the buffer: with freeze on and silence in, Granular keeps sounding.
   e->set_param(a, "mode", "0");
   e->set_param(a, "quality", "0");
-  Run(e, a);
-  e->set_param(a, "freeze", "1");
-  Result frozen = Run(e, a);
+  Result frozen = Run(e, a, 400);   // freeze 1.16 s in, during a noise burst
   e->set_param(a, "freeze", "0");
   printf("\nfrozen granular tail rms %.4f\n", frozen.rms_tail);
   Check(frozen.rms_tail > 1e-3, "freeze keeps the buffer playing after the input stops");

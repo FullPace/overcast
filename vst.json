@@ -40,7 +40,8 @@
     ],
     "libs": [
       "-lm",
-      "-ldl"
+      "-ldl",
+      "-lpthread"
     ]
   }
 }

@@ -1,7 +1,7 @@
 # Native effect test (noise through every mode/quality, freeze, trigger, state chunk). No device, no Docker.
 #   make -C test run
 PS = ../third_party/parasites
-SRC = fx_test.cc ../src/engine.cc ../src/midi_in.cc \
+SRC = fx_test.cc ../src/engine.cc ../src/midi_in.cc ../src/mod.cc \
       $(PS)/clouds/dsp/correlator.cc $(PS)/clouds/dsp/granular_processor.cc $(PS)/clouds/dsp/mu_law.cc \
       $(PS)/clouds/dsp/pvoc/frame_transformation.cc $(PS)/clouds/dsp/pvoc/phase_vocoder.cc \
       $(PS)/clouds/dsp/pvoc/stft.cc $(PS)/clouds/resources.cc \

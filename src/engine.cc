@@ -10,6 +10,8 @@
 // buffer length and time constants shrink by 32/44.1.
 
 #include <math.h>
+#include <pthread.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,7 +162,24 @@ struct Instance {
   bool mod_trigger_high; // the matrix's Trigger destination was above 0.5 last step
   bool playing;          // MPC transport (HAS_HOST_TRANSPORT), for synced LFOs
   double ppq, bpm;
+
+  // Mode and quality changes re-initialise the processor's buffers (a CPU spike); a turning Q-Link would do that
+  // every block. A change applies at once, further ones at most every kReconfigureBlocks.
+  int applied_mode, applied_quality;
+  int blocks_since_reconfigure;
+
+  // The module runs GranularProcessor::Prepare() in its main loop, concurrently with the audio interrupt: FFT
+  // frames in Spectral, WSOLA correlation, buffer set-up on a mode change. The DSP is written for that (the STFT
+  // hands frames over through counters), so here it runs in its own thread too, on another core, and the audio
+  // thread only processes samples. Spectral's whole-frame FFTs no longer land in single audio blocks.
+  pthread_t prepare_thread;
+  bool prepare_running;
+  volatile bool prepare_quit;
+  pthread_mutex_t prepare_mutex;
+  pthread_cond_t prepare_wake;
 };
+
+const int kReconfigureBlocks = 689;   // 0.5 s of 32-frame blocks
 
 int Option(const Instance* s, Param p) { return static_cast<int>(s->param[p] + 0.5f); }
 
@@ -174,6 +193,22 @@ Instance* NewInstance() {
 void DeleteInstance(Instance* s) {
   s->~Instance();
   free(s);
+}
+
+void* PrepareLoop(void* arg) {
+  Instance* s = static_cast<Instance*>(arg);
+  while (!s->prepare_quit) {
+    pthread_mutex_lock(&s->prepare_mutex);
+    timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_nsec += 3000000;   // at least every 3 ms, as a fallback to the per-block wake-up
+    if (until.tv_nsec >= 1000000000) { until.tv_sec += 1; until.tv_nsec -= 1000000000; }
+    pthread_cond_timedwait(&s->prepare_wake, &s->prepare_mutex, &until);
+    pthread_mutex_unlock(&s->prepare_mutex);
+    // Like the module's main loop: call it repeatedly; it returns at once when there is nothing to do.
+    for (int i = 0; i < 4 && !s->prepare_quit; ++i) s->processor.Prepare();
+  }
+  return NULL;
 }
 
 void* Create(const char* data_dir) {
@@ -203,11 +238,22 @@ void* Create(const char* data_dir) {
   s->modulation.Init(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s)));
   s->ppq = -1.0;
   s->bpm = 120.0;
+  s->blocks_since_reconfigure = kReconfigureBlocks;   // the first change applies at once
+  pthread_mutex_init(&s->prepare_mutex, NULL);
+  pthread_cond_init(&s->prepare_wake, NULL);
+  s->prepare_running = pthread_create(&s->prepare_thread, NULL, PrepareLoop, s) == 0;
   return s;
 }
 
 void Destroy(void* inst) {
   Instance* s = static_cast<Instance*>(inst);
+  if (s->prepare_running) {
+    s->prepare_quit = true;
+    pthread_cond_signal(&s->prepare_wake);
+    pthread_join(s->prepare_thread, NULL);
+  }
+  pthread_cond_destroy(&s->prepare_wake);
+  pthread_mutex_destroy(&s->prepare_mutex);
   midi_in::Close(s->midi);
   delete[] s->large_buffer;
   delete[] s->small_buffer;
@@ -388,10 +434,17 @@ void UpdateParameters(Instance* s) {
   s->smoothing_started = true;
 
   GranularProcessor& g = s->processor;
-  PlaybackMode mode = PlaybackMode(Clamp(Option(s, P_MODE), 0, int(PLAYBACK_MODE_LAST) - 1));
-  if (mode != g.playback_mode()) fprintf(stderr, "Overcast: mode %d -> %d\n", int(g.playback_mode()), int(mode));
-  g.set_playback_mode(mode);
-  g.set_quality(Clamp(Option(s, P_QUALITY), 0, 3));
+  int mode = Clamp(Option(s, P_MODE), 0, int(PLAYBACK_MODE_LAST) - 1);
+  int quality = Clamp(Option(s, P_QUALITY), 0, 3);
+  if (s->blocks_since_reconfigure < kReconfigureBlocks) ++s->blocks_since_reconfigure;
+  if ((mode != s->applied_mode || quality != s->applied_quality) && s->blocks_since_reconfigure >= kReconfigureBlocks) {
+    if (mode != s->applied_mode) fprintf(stderr, "Overcast: mode %d -> %d\n", s->applied_mode, mode);
+    s->applied_mode = mode;
+    s->applied_quality = quality;
+    s->blocks_since_reconfigure = 0;
+  }
+  g.set_playback_mode(PlaybackMode(s->applied_mode));
+  g.set_quality(s->applied_quality);
 
   const mod::Modulation& m = UpdateModulation(s);
   Parameters* p = g.mutable_parameters();
@@ -457,6 +510,7 @@ void Process(void* inst, const int16_t* in_lr, int16_t* out_lr, int frames) {
   Instance* s = static_cast<Instance*>(inst);
   midi_in::Poll(s->midi, Midi, s);
   ProbeReport(frames);
+  if (s->prepare_running) pthread_cond_signal(&s->prepare_wake);
   // Process() takes a non-const input; it only reads it.
   ShortFrame* in = reinterpret_cast<ShortFrame*>(const_cast<int16_t*>(in_lr));
   ShortFrame* out = reinterpret_cast<ShortFrame*>(out_lr);
@@ -469,7 +523,7 @@ void Process(void* inst, const int16_t* in_lr, int16_t* out_lr, int frames) {
       s->gained_in[i].r = ToShort(SoftSaturate(in[offset + i].r / 32768.0f * in_gain));
     }
     s->processor.Process(s->gained_in, out + offset, n);
-    s->processor.Prepare();
+    if (!s->prepare_running) s->processor.Prepare();
     OutputStage(s, out + offset, n);
   }
 }
