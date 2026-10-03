@@ -18,7 +18,8 @@ SETTINGS=/media/az01-internal/Settings/MPC/MPC.settings
 # 1. files: skin folder + .so, staged next to the live copy and swapped in with mv
 tar -C build/skin -cf - "$NAME" | ssh "$HOST" "rm -rf '$DEST.new' && mkdir -p /tmp/overcast && tar -C /tmp/overcast -xf - && mv '/tmp/overcast/$NAME' '$DEST.new'"
 scp -q "build/$SO" "$HOST:/tmp/overcast/$SO"
-ssh "$HOST" "cp '/tmp/overcast/$SO' '$DEST.new/$SO' && rm -rf '$DEST.old' && { [ -d '$DEST' ] && mv '$DEST' '$DEST.old' || true; } && mv '$DEST.new' '$DEST' && rm -rf '$DEST.old' /tmp/overcast"
+# An unchanged .so keeps its file (same inode), so a skin-only update doesn't look like a stale build below.
+ssh "$HOST" "if [ -f '$DEST/$SO' ] && [ \"\$(md5sum < '$DEST/$SO')\" = \"\$(md5sum < '/tmp/overcast/$SO')\" ]; then mv '$DEST/$SO' '$DEST.new/$SO'; else cp '/tmp/overcast/$SO' '$DEST.new/$SO'; fi && rm -rf '$DEST.old' && { [ -d '$DEST' ] && mv '$DEST' '$DEST.old' || true; } && mv '$DEST.new' '$DEST' && rm -rf '$DEST.old' /tmp/overcast"
 LOCAL_MD5=$(md5 -q "build/$SO" 2>/dev/null || md5sum "build/$SO" | cut -d' ' -f1)
 REMOTE_MD5=$(ssh "$HOST" "md5sum '$DEST/$SO'" | cut -d' ' -f1)
 [ "$LOCAL_MD5" = "$REMOTE_MD5" ] || { echo "md5 mismatch after copy" >&2; exit 1; }
