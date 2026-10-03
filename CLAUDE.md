@@ -138,3 +138,21 @@ mapped with the new file and says when the app must be restarted (ask the user t
 - CPU bench (`third_party/mpc-vst-plugins/tools/bench.sh`), especially Spectral.
 - Confirm by ear that MIDI notes transpose/trigger.
 - 32 kHz resampling if the shorter buffer matters.
+
+## Releasing (as done for 1.0.0 / 1.0.1, 2026-10-03)
+
+1. Keep the framework submodule current (`git -C third_party/mpc-vst-plugins checkout <commit>` **and** `git add` it —
+   `build.sh` resets the submodule to the recorded commit). Check `patches/` still apply.
+2. `./build.sh`; the highest glibc symbol must be ≤ 2.32 (the catalog limit; the framework builds in
+   `arm32v7/gcc:11-bullseye`). Threads and `dlopen` bind to 2.34 with newer images.
+3. Bench on the device: `tools/bench.sh build/overcast.so <ip> -j | tee build/bench.txt`, then
+   `tail -n 1 build/bench.txt > build/bench.json`. 1.0.1: p99 9.3 %, worst block 11.3 %, PASS.
+4. Package: `tools/release.py --so build/overcast.so --skin "build/skin/Padbangers - VST - Overcast" --entry
+   build/pluginlist-entry.xml --version X.Y.Z --bench build/bench.json --about "..." --repo FullPace/overcast
+   --license MIT --id overcast -o dist`, then `tools/catalog_check.py dist/<zip> --catalog --expect-id overcast
+   --expect-repo FullPace/overcast` (use the newest framework's checker).
+5. Device test with the zip's own `install.sh -y` (restarts MPC: ask the user), user plays it and saves/reloads.
+6. Bump `vst.json` "version", add the release to `tested.json`, push, `gh release create overcast-vX.Y.Z <zip>`.
+   The generated INSTALL.md says "Tested on MPC OS with a Force" (framework boilerplate): the release notes say MPC X.
+7. Catalog: entry `catalog/plugins/overcast.json` in sd88me/mpc-vst-plugins, PR #147 (opened 2026-10-03). Keep the
+   catalog id, uid `PbCl` and `overcast.so` fixed; raise the major version only when parameter positions change.
