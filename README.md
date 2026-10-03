@@ -53,7 +53,7 @@ Tips: in Granular, Density at 12 o'clock means no grains (clockwise: regular, co
 recording into the buffer — with Blend below 100 % you still hear the dry input next to the frozen cloud.
 
 **MODULATION tab:** envelopes and LFOs on the left, the matrix on the right (source → destination → amount,
-−100…+100 %). Freeze and Trigger destinations are gates: on above 50 %. An LFO square wave on Trigger clocks grains
+−100…+100 %). With SYNC on, an LFO's rate knob picks the note value (4 bars … 1/32) and shows it under the knob. Freeze and Trigger destinations are gates: on above 50 %. An LFO square wave on Trigger clocks grains
 (or strikes the Resonestor) in time with the MPC.
 
 **MIDI (melodic playing):** MPC OS sends no MIDI to insert effects, so every Overcast instance opens its own MIDI
