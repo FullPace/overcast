@@ -13,11 +13,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <new>
 
 #include "clouds/dsp/granular_processor.h"
 #include "midi_in.h"
+#include "mod.h"
 
 extern "C" {
 #include "engine.h"
@@ -41,12 +41,17 @@ enum Param {
   P_DRY_WET, P_SPREAD, P_FEEDBACK, P_REVERB,
   P_FREEZE, P_REVERSE, P_TRIGGER,
   P_MIDI_PITCH, P_MIDI_ROOT,
-  P_PAGE_0, P_PAGE_1, P_PAGE_2, P_PAGE_3, P_PAGE_4, P_PAGE_5,
   P_IN_GAIN, P_OUT_GAIN,
-  P_LAST
+  // modulation page: per envelope attack, decay, sustain, release, trigger; per LFO shape, rate, sync,
+  // division; per matrix slot source, destination, amount
+  P_MOD_FIRST,
+  P_ENV_FIRST = P_MOD_FIRST,
+  P_LFO_FIRST = P_ENV_FIRST + mod::kNumEnvs * 5,
+  P_SLOT_FIRST = P_LFO_FIRST + mod::kNumLfos * 4,
+  P_LAST = P_SLOT_FIRST + mod::kNumSlots * 3
 };
 
-enum Kind { CONTINUOUS, OPTION, MOMENTARY, PAGE };
+enum Kind { CONTINUOUS, OPTION, MOMENTARY };
 
 struct ParamInfo {
   const char* key;
@@ -54,8 +59,9 @@ struct ParamInfo {
   Kind kind;
 };
 
-// Same list as params.json (names, ranges, labels), in VST order.
-const ParamInfo kParams[P_LAST] = {
+// Same list as params.json (names, ranges, labels), in VST order. The modulation entries are filled in by
+// InitModParams(); params.json gets them from skin/gen_params.py.
+ParamInfo kParams[P_LAST] = {
   { "mode", 0, OPTION },          // Granular
   { "quality", 0, OPTION },       // 16-bit stereo
   { "position", 0.5f, CONTINUOUS },
@@ -72,11 +78,6 @@ const ParamInfo kParams[P_LAST] = {
   { "trigger", 0, MOMENTARY },
   { "midi_pitch", 1, OPTION },      // notes transpose, like the module's V/Oct input
   { "midi_root", 60, OPTION },      // the note that plays at the Pitch knob's setting (integer)
-  // Page markers: each MPC tab of the skin is one mode and shows its marker (a title readout) first. MPC asks for
-  // a page's params when it shows the page (verified with a probe build), so a marker being read means its tab
-  // just came up: the mode follows the tab.
-  { "page_0", 0, PAGE }, { "page_1", 0, PAGE }, { "page_2", 0, PAGE },
-  { "page_3", 0, PAGE }, { "page_4", 0, PAGE }, { "page_5", 0, PAGE },
   { "in_gain", 0.0f, CONTINUOUS },    // dB before the processor, like the module's IN GAIN (-18..+6 there)
   { "out_gain", 6.0f, CONTINUOUS },   // dB after it, into the limiter
 };
@@ -102,12 +103,36 @@ const ModeNames kNames[] = {
   { "trigger", { "Trigger", "Loop Sync", "Tap", "Glitch", "Clock", "Strike" } },
 };
 
-const double kPageSettle = 0.2;   // seconds
+char mod_keys[P_LAST - P_MOD_FIRST][16];
 
-double NowSeconds() {
-  timespec t;
-  clock_gettime(CLOCK_MONOTONIC, &t);
-  return t.tv_sec + t.tv_nsec * 1e-9;
+void InitModParams() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  int k = 0;
+  const char* env_keys[5] = { "attack", "decay", "sustain", "release", "trig" };
+  const float env_defaults[5] = { 0.1f, 0.5f, 0.7f, 0.5f, mod::TRIG_MIDI };
+  for (int e = 0; e < mod::kNumEnvs; ++e) {
+    for (int j = 0; j < 5; ++j, ++k) {
+      snprintf(mod_keys[k], sizeof mod_keys[k], "env%d_%s", e + 1, env_keys[j]);
+      kParams[P_MOD_FIRST + k] = { mod_keys[k], env_defaults[j], j == 4 ? OPTION : CONTINUOUS };
+    }
+  }
+  const char* lfo_keys[4] = { "shape", "rate", "sync", "div" };
+  const float lfo_defaults[4] = { mod::SHAPE_SINE, 0.5f, 0, 4 };   // 4 = 1/4 note
+  for (int l = 0; l < mod::kNumLfos; ++l) {
+    for (int j = 0; j < 4; ++j, ++k) {
+      snprintf(mod_keys[k], sizeof mod_keys[k], "lfo%d_%s", l + 1, lfo_keys[j]);
+      kParams[P_MOD_FIRST + k] = { mod_keys[k], lfo_defaults[j], j == 1 ? CONTINUOUS : OPTION };
+    }
+  }
+  const char* slot_keys[3] = { "src", "dst", "amt" };
+  for (int m = 0; m < mod::kNumSlots; ++m) {
+    for (int j = 0; j < 3; ++j, ++k) {
+      snprintf(mod_keys[k], sizeof mod_keys[k], "mod%d_%s", m + 1, slot_keys[j]);
+      kParams[P_MOD_FIRST + k] = { mod_keys[k], 0.0f, j == 2 ? CONTINUOUS : OPTION };   // amount in %
+    }
+  }
 }
 
 template<typename T> T Clamp(T x, T lo, T hi) { return x < lo ? lo : (x > hi ? hi : x); }
@@ -127,14 +152,14 @@ struct Instance {
   float limiter_peak;    // output limiter's envelope (linear, both channels)
   ShortFrame gained_in[kBlock];
   bool midi_seen;        // logged the first MIDI event
-  midi_in::Port* midi;   // our own MIDI input ("Clouds N"): MPC sends no MIDI to insert effects
+  midi_in::Port* midi;   // our own MIDI input ("Overcast N"): MPC sends no MIDI to insert effects
 
-  // Page markers read (see kParams): a tab coming up reads only its own marker, but MPC also reads every param
-  // in one go (e.g. when the plugin is inserted), all markers included. So a marker only switches the mode once
-  // no other marker has been read for kPageSettle: a burst of different markers is ignored.
-  volatile int page_pending;       // -1: none
-  volatile bool page_burst;
-  volatile double page_time;
+  mod::Modulation modulation;
+  float velocity;        // last note-on velocity, 0..1 (a modulation source)
+  bool midi_retrigger;   // a note-on since the last control step (restarts MIDI-triggered envelopes)
+  bool mod_trigger_high; // the matrix's Trigger destination was above 0.5 last step
+  bool playing;          // MPC transport (HAS_HOST_TRANSPORT), for synced LFOs
+  double ppq, bpm;
 };
 
 int Option(const Instance* s, Param p) { return static_cast<int>(s->param[p] + 0.5f); }
@@ -175,7 +200,9 @@ void* Create(const char* data_dir) {
   s->processor.set_quality(0);
   s->processor.Prepare();
   s->midi = midi_in::Open();
-  s->page_pending = -1;
+  s->modulation.Init(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(s)));
+  s->ppq = -1.0;
+  s->bpm = 120.0;
   return s;
 }
 
@@ -192,12 +219,14 @@ void Midi(void* inst, const uint8_t* msg, int len) {
   if (len < 3) return;
   if (!s->midi_seen) {
     s->midi_seen = true;
-    fprintf(stderr, "Clouds: MIDI received (%02x %02x %02x)\n", msg[0], msg[1], msg[2]);
+    fprintf(stderr, "Overcast: MIDI received (%02x %02x %02x)\n", msg[0], msg[1], msg[2]);
   }
   uint8_t status = msg[0] & 0xf0;
   if (status == 0x90 && msg[2] > 0) {
     s->trigger_pending = true;
     ++s->notes_held;
+    s->velocity = msg[2] / 127.0f;
+    s->midi_retrigger = true;
     if (Option(s, P_MIDI_PITCH)) s->note_offset = static_cast<float>(msg[1] - Option(s, P_MIDI_ROOT));
   } else if (status == 0x80 || (status == 0x90 && msg[2] == 0)) {
     if (s->notes_held > 0) --s->notes_held;
@@ -210,7 +239,7 @@ void SetParam(void* inst, const char* key, const char* val);
 int SaveState(const Instance* s, char* buf, int buf_len) {
   int len = 0;
   for (int p = 0; p < P_LAST && len < buf_len; ++p) {
-    if (kParams[p].kind == MOMENTARY || kParams[p].kind == PAGE) continue;
+    if (kParams[p].kind == MOMENTARY) continue;
     len += snprintf(buf + len, buf_len - len, "%s=%g;", kParams[p].key, s->param[p]);
   }
   return len < buf_len ? len : buf_len - 1;
@@ -240,9 +269,18 @@ void SetParam(void* inst, const char* key, const char* val) {
     LoadState(s, val);
     return;
   }
+  if (!strcmp(key, "host_transport")) {
+    int playing = 0;
+    double ppq = -1.0, bpm = 0.0;
+    if (sscanf(val, "%d %lf %lf", &playing, &ppq, &bpm) >= 2) {
+      s->playing = playing != 0;
+      s->ppq = ppq;
+      if (bpm > 0.0) s->bpm = bpm;
+    }
+    return;
+  }
   for (int p = 0; p < P_LAST; ++p) {
     if (strcmp(key, kParams[p].key)) continue;
-    if (kParams[p].kind == PAGE) return;   // read-only
     float v = static_cast<float>(atof(val));
     if (kParams[p].kind == MOMENTARY) {
       if (v > 0.5f && s->param[p] <= 0.5f) s->trigger_pending = true;
@@ -287,11 +325,17 @@ int GetParam(void* inst, const char* key, char* buf, int buf_len) {
   ProbeCount(key);
   if (!strcmp(key, "state")) return SaveState(s, buf, buf_len);
   size_t key_len = strlen(key);
-  if (key_len > 8 && !strncmp(key, "page_", 5) && !strcmp(key + key_len - 8, "_display")) {
-    // A page marker's display text (its tab title): shown, so its tab is up.
-    char base[16];
-    snprintf(base, sizeof base, "%.*s", static_cast<int>(key_len - 8), key);
-    return GetParam(inst, base, buf, buf_len);
+  if (key_len > 8 && !strcmp(key + key_len - 8, "_display")) {
+    // Readable values for the envelope times and LFO rates (dynamic_display in params.json).
+    for (int p = P_MOD_FIRST; p < P_SLOT_FIRST; ++p) {
+      if (strlen(kParams[p].key) != key_len - 8 || strncmp(key, kParams[p].key, key_len - 8)) continue;
+      float v = Clamp(s->param[p], 0.0f, 1.0f);
+      if (strstr(key, "_rate")) return snprintf(buf, buf_len, "%.2f Hz", 0.01f * powf(3000.0f, v));
+      float sec = 0.001f * powf(10000.0f, v);
+      return sec < 1.0f ? snprintf(buf, buf_len, "%d ms", static_cast<int>(sec * 1000.0f + 0.5f))
+                        : snprintf(buf, buf_len, "%.1f s", sec);
+    }
+    return 0;
   }
   if (key_len > 5 && !strcmp(key + key_len - 5, "_name")) {
     int mode = Clamp(Option(s, P_MODE), 0, 5);
@@ -304,21 +348,34 @@ int GetParam(void* inst, const char* key, char* buf, int buf_len) {
   }
   for (int p = 0; p < P_LAST; ++p) {
     if (strcmp(key, kParams[p].key)) continue;
-    if (kParams[p].kind == PAGE) {
-      static const char* const kTitles[6] = { "Granular", "Stretch", "Looping Delay", "Spectral", "Oliverb",
-                                              "Resonestor" };
-      int mode = p - P_PAGE_0;
-      Instance* w = const_cast<Instance*>(s);
-      double now = NowSeconds();
-      if (w->page_pending >= 0 && w->page_pending != mode && now - w->page_time < kPageSettle) w->page_burst = true;
-      w->page_pending = mode;
-      w->page_time = now;
-      return snprintf(buf, buf_len, "%s", kTitles[mode]);
-    }
     if (kParams[p].kind != CONTINUOUS) return snprintf(buf, buf_len, "%d", Option(s, static_cast<Param>(p)));
     return snprintf(buf, buf_len, "%g", s->param[p]);
   }
   return 0;
+}
+
+// One control-rate step of the envelopes, LFOs and matrix.
+const mod::Modulation& UpdateModulation(Instance* s) {
+  mod::Settings ms;
+  for (int e = 0; e < mod::kNumEnvs; ++e) {
+    const float* v = &s->param[P_ENV_FIRST + e * 5];
+    ms.env[e] = { v[0], v[1], v[2], v[3], static_cast<int>(v[4] + 0.5f) };
+  }
+  for (int l = 0; l < mod::kNumLfos; ++l) {
+    const float* v = &s->param[P_LFO_FIRST + l * 4];
+    ms.lfo[l] = { static_cast<int>(v[0] + 0.5f), v[1], v[2] > 0.5f, static_cast<int>(v[3] + 0.5f) };
+  }
+  for (int k = 0; k < mod::kNumSlots; ++k) {
+    const float* v = &s->param[P_SLOT_FIRST + k * 3];
+    ms.source[k] = static_cast<int>(v[0] + 0.5f);
+    ms.dest[k] = static_cast<int>(v[1] + 0.5f);
+    ms.amount[k] = v[2] / 100.0f;   // -100..+100 %
+  }
+  mod::Inputs in = { s->notes_held > 0, s->midi_retrigger, s->param[P_TRIGGER] > 0.5f, s->velocity,
+                     s->playing, s->ppq, s->bpm };
+  s->midi_retrigger = false;
+  s->modulation.Process(ms, in, static_cast<float>(kBlock) / 44100.0f);
+  return s->modulation;
 }
 
 // Once per 32-frame block, as the module's CV scaler does before each Process().
@@ -332,23 +389,28 @@ void UpdateParameters(Instance* s) {
 
   GranularProcessor& g = s->processor;
   PlaybackMode mode = PlaybackMode(Clamp(Option(s, P_MODE), 0, int(PLAYBACK_MODE_LAST) - 1));
-  if (mode != g.playback_mode()) fprintf(stderr, "Clouds: mode %d -> %d\n", int(g.playback_mode()), int(mode));
+  if (mode != g.playback_mode()) fprintf(stderr, "Overcast: mode %d -> %d\n", int(g.playback_mode()), int(mode));
   g.set_playback_mode(mode);
   g.set_quality(Clamp(Option(s, P_QUALITY), 0, 3));
 
+  const mod::Modulation& m = UpdateModulation(s);
   Parameters* p = g.mutable_parameters();
-  p->position = Clamp(s->smoothed[P_POSITION], 0.0f, kMaxKnob);
-  p->size = Clamp(s->smoothed[P_SIZE], 0.0f, kMaxKnob);
+  p->position = Clamp(s->smoothed[P_POSITION] + m.out(mod::DST_POSITION), 0.0f, kMaxKnob);
+  p->size = Clamp(s->smoothed[P_SIZE] + m.out(mod::DST_SIZE), 0.0f, kMaxKnob);
   float note = Option(s, P_MIDI_PITCH) ? s->note_offset : 0.0f;
-  p->pitch = Clamp(s->smoothed[P_PITCH] + note, -48.0f, 48.0f);
-  p->density = Clamp(s->smoothed[P_DENSITY], 0.0f, kMaxKnob);
-  p->texture = Clamp(s->smoothed[P_TEXTURE], 0.0f, kMaxKnob);
-  p->dry_wet = Clamp(s->smoothed[P_DRY_WET], 0.0f, kMaxKnob);
-  p->stereo_spread = Clamp(s->smoothed[P_SPREAD], 0.0f, kMaxKnob);
-  p->feedback = Clamp(s->smoothed[P_FEEDBACK], 0.0f, kMaxKnob);
-  p->reverb = Clamp(s->smoothed[P_REVERB], 0.0f, kMaxKnob);
-  p->freeze = Option(s, P_FREEZE) != 0;
+  p->pitch = Clamp(s->smoothed[P_PITCH] + note + 24.0f * m.out(mod::DST_PITCH), -48.0f, 48.0f);
+  p->density = Clamp(s->smoothed[P_DENSITY] + m.out(mod::DST_DENSITY), 0.0f, kMaxKnob);
+  p->texture = Clamp(s->smoothed[P_TEXTURE] + m.out(mod::DST_TEXTURE), 0.0f, kMaxKnob);
+  p->dry_wet = Clamp(s->smoothed[P_DRY_WET] + m.out(mod::DST_BLEND), 0.0f, kMaxKnob);
+  p->stereo_spread = Clamp(s->smoothed[P_SPREAD] + m.out(mod::DST_SPREAD), 0.0f, kMaxKnob);
+  p->feedback = Clamp(s->smoothed[P_FEEDBACK] + m.out(mod::DST_FEEDBACK), 0.0f, kMaxKnob);
+  p->reverb = Clamp(s->smoothed[P_REVERB] + m.out(mod::DST_REVERB), 0.0f, kMaxKnob);
+  // gates, as the module's FREEZE and TRIG inputs: on above 0.5
+  p->freeze = Option(s, P_FREEZE) != 0 || m.out(mod::DST_FREEZE) > 0.5f;
   p->granular.reverse = Option(s, P_REVERSE) != 0;
+  bool mod_trigger = m.out(mod::DST_TRIGGER) > 0.5f;
+  if (mod_trigger && !s->mod_trigger_high) s->trigger_pending = true;
+  s->mod_trigger_high = mod_trigger;
   p->trigger = s->trigger_pending;
   p->gate = s->notes_held > 0 || s->param[P_TRIGGER] > 0.5f;
   s->trigger_pending = false;
@@ -395,12 +457,6 @@ void Process(void* inst, const int16_t* in_lr, int16_t* out_lr, int frames) {
   Instance* s = static_cast<Instance*>(inst);
   midi_in::Poll(s->midi, Midi, s);
   ProbeReport(frames);
-  if (s->page_pending >= 0 && NowSeconds() - s->page_time > kPageSettle) {
-    if (!s->page_burst) s->param[P_MODE] = static_cast<float>(s->page_pending);   // this mode's tab came up
-    fprintf(stderr, "Clouds: page %d %s\n", s->page_pending, s->page_burst ? "ignored (burst)" : "shown");
-    s->page_pending = -1;
-    s->page_burst = false;
-  }
   // Process() takes a non-const input; it only reads it.
   ShortFrame* in = reinterpret_cast<ShortFrame*>(const_cast<int16_t*>(in_lr));
   ShortFrame* out = reinterpret_cast<ShortFrame*>(out_lr);
@@ -422,4 +478,7 @@ const mpc_engine_t kEngine = { Create, Destroy, Midi, SetParam, GetParam, Render
 
 }  // namespace
 
-extern "C" const mpc_engine_t* mpc_engine(void) { return &kEngine; }
+extern "C" const mpc_engine_t* mpc_engine(void) {
+  InitModParams();
+  return &kEngine;
+}

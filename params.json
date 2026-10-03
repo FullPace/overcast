@@ -1,5 +1,5 @@
 {
-  "name": "Clouds",
+  "name": "Overcast",
   "params": [
     {
       "key": "mode",
@@ -145,54 +145,6 @@
       "default": 60
     },
     {
-      "key": "page_0",
-      "name": "Mode: Granular",
-      "min": 0.0,
-      "max": 1.0,
-      "default": 0.0,
-      "dynamic_display": true
-    },
-    {
-      "key": "page_1",
-      "name": "Mode: Stretch",
-      "min": 0.0,
-      "max": 1.0,
-      "default": 0.0,
-      "dynamic_display": true
-    },
-    {
-      "key": "page_2",
-      "name": "Mode: Looping Delay",
-      "min": 0.0,
-      "max": 1.0,
-      "default": 0.0,
-      "dynamic_display": true
-    },
-    {
-      "key": "page_3",
-      "name": "Mode: Spectral",
-      "min": 0.0,
-      "max": 1.0,
-      "default": 0.0,
-      "dynamic_display": true
-    },
-    {
-      "key": "page_4",
-      "name": "Mode: Oliverb",
-      "min": 0.0,
-      "max": 1.0,
-      "default": 0.0,
-      "dynamic_display": true
-    },
-    {
-      "key": "page_5",
-      "name": "Mode: Resonestor",
-      "min": 0.0,
-      "max": 1.0,
-      "default": 0.0,
-      "dynamic_display": true
-    },
-    {
       "key": "in_gain",
       "name": "In Gain",
       "min": -18.0,
@@ -207,6 +159,508 @@
       "max": 24.0,
       "unit": "dB",
       "default": 6.0
+    },
+    {
+      "key": "env1_attack",
+      "name": "Env 1 Attack",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.1,
+      "dynamic_display": true
+    },
+    {
+      "key": "env1_decay",
+      "name": "Env 1 Decay",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_display": true
+    },
+    {
+      "key": "env1_sustain",
+      "name": "Env 1 Sustain",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.7
+    },
+    {
+      "key": "env1_release",
+      "name": "Env 1 Release",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_display": true
+    },
+    {
+      "key": "env1_trig",
+      "name": "Env 1 Trigger",
+      "options": [
+        "MIDI",
+        "LFO 1",
+        "LFO 2"
+      ],
+      "default": 0
+    },
+    {
+      "key": "env2_attack",
+      "name": "Env 2 Attack",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.1,
+      "dynamic_display": true
+    },
+    {
+      "key": "env2_decay",
+      "name": "Env 2 Decay",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_display": true
+    },
+    {
+      "key": "env2_sustain",
+      "name": "Env 2 Sustain",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.7
+    },
+    {
+      "key": "env2_release",
+      "name": "Env 2 Release",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_display": true
+    },
+    {
+      "key": "env2_trig",
+      "name": "Env 2 Trigger",
+      "options": [
+        "MIDI",
+        "LFO 1",
+        "LFO 2"
+      ],
+      "default": 0
+    },
+    {
+      "key": "lfo1_shape",
+      "name": "LFO 1 Shape",
+      "options": [
+        "Sine",
+        "Triangle",
+        "Saw Up",
+        "Saw Down",
+        "Square",
+        "S&H",
+        "Smooth Rnd"
+      ],
+      "default": 0
+    },
+    {
+      "key": "lfo1_rate",
+      "name": "LFO 1 Rate",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_display": true
+    },
+    {
+      "key": "lfo1_sync",
+      "name": "LFO 1 Sync",
+      "options": [
+        "Off",
+        "On"
+      ],
+      "default": 0
+    },
+    {
+      "key": "lfo1_div",
+      "name": "LFO 1 Division",
+      "options": [
+        "4 Bars",
+        "2 Bars",
+        "1 Bar",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32"
+      ],
+      "default": 4
+    },
+    {
+      "key": "lfo2_shape",
+      "name": "LFO 2 Shape",
+      "options": [
+        "Sine",
+        "Triangle",
+        "Saw Up",
+        "Saw Down",
+        "Square",
+        "S&H",
+        "Smooth Rnd"
+      ],
+      "default": 0
+    },
+    {
+      "key": "lfo2_rate",
+      "name": "LFO 2 Rate",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.5,
+      "dynamic_display": true
+    },
+    {
+      "key": "lfo2_sync",
+      "name": "LFO 2 Sync",
+      "options": [
+        "Off",
+        "On"
+      ],
+      "default": 0
+    },
+    {
+      "key": "lfo2_div",
+      "name": "LFO 2 Division",
+      "options": [
+        "4 Bars",
+        "2 Bars",
+        "1 Bar",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32"
+      ],
+      "default": 4
+    },
+    {
+      "key": "mod1_src",
+      "name": "Mod 1 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod1_dst",
+      "name": "Mod 1 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod1_amt",
+      "name": "Mod 1 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod2_src",
+      "name": "Mod 2 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod2_dst",
+      "name": "Mod 2 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod2_amt",
+      "name": "Mod 2 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod3_src",
+      "name": "Mod 3 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod3_dst",
+      "name": "Mod 3 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod3_amt",
+      "name": "Mod 3 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod4_src",
+      "name": "Mod 4 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod4_dst",
+      "name": "Mod 4 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod4_amt",
+      "name": "Mod 4 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod5_src",
+      "name": "Mod 5 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod5_dst",
+      "name": "Mod 5 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod5_amt",
+      "name": "Mod 5 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod6_src",
+      "name": "Mod 6 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod6_dst",
+      "name": "Mod 6 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod6_amt",
+      "name": "Mod 6 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod7_src",
+      "name": "Mod 7 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod7_dst",
+      "name": "Mod 7 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod7_amt",
+      "name": "Mod 7 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
+    },
+    {
+      "key": "mod8_src",
+      "name": "Mod 8 Source",
+      "options": [
+        "Off",
+        "LFO 1",
+        "LFO 2",
+        "Env 1",
+        "Env 2",
+        "Velocity"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod8_dst",
+      "name": "Mod 8 Dest",
+      "options": [
+        "Off",
+        "Position",
+        "Size",
+        "Pitch",
+        "Density",
+        "Texture",
+        "Blend",
+        "Spread",
+        "Feedback",
+        "Reverb",
+        "Freeze",
+        "Trigger"
+      ],
+      "default": 0
+    },
+    {
+      "key": "mod8_amt",
+      "name": "Mod 8 Amount",
+      "min": -100.0,
+      "max": 100.0,
+      "unit": "%",
+      "display": "int",
+      "default": 0.0
     }
   ],
   "sections": [
@@ -230,10 +684,66 @@
         "spread",
         "feedback",
         "reverb",
-        "mode",
         "quality",
         "midi_pitch",
         "midi_root"
+      ]
+    },
+    {
+      "label": "Envelopes",
+      "keys": [
+        "env1_attack",
+        "env1_decay",
+        "env1_sustain",
+        "env1_release",
+        "env1_trig",
+        "env2_attack",
+        "env2_decay",
+        "env2_sustain",
+        "env2_release",
+        "env2_trig"
+      ]
+    },
+    {
+      "label": "LFOs",
+      "keys": [
+        "lfo1_shape",
+        "lfo1_rate",
+        "lfo1_sync",
+        "lfo1_div",
+        "lfo2_shape",
+        "lfo2_rate",
+        "lfo2_sync",
+        "lfo2_div"
+      ]
+    },
+    {
+      "label": "Matrix",
+      "keys": [
+        "mod1_src",
+        "mod1_dst",
+        "mod1_amt",
+        "mod2_src",
+        "mod2_dst",
+        "mod2_amt",
+        "mod3_src",
+        "mod3_dst",
+        "mod3_amt",
+        "mod4_src",
+        "mod4_dst",
+        "mod4_amt",
+        "mod5_src",
+        "mod5_dst",
+        "mod5_amt",
+        "mod6_src",
+        "mod6_dst",
+        "mod6_amt",
+        "mod7_src",
+        "mod7_dst",
+        "mod7_amt",
+        "mod8_src",
+        "mod8_dst",
+        "mod8_amt"
       ]
     }
   ]

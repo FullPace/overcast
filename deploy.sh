@@ -8,17 +8,17 @@ cd "$(dirname "$0")"
 YES=0
 [ "${1:-}" = --yes ] && { YES=1; shift; }
 HOST="${1:-mpcx}"
-NAME="Padbangers - VST - Clouds"
-SO=clouds_fx.so
+NAME="Padbangers - VST - Overcast"
+SO=overcast.so
 DEST="/sdcard/Synths/$NAME"
 SETTINGS=/media/az01-internal/Settings/MPC/MPC.settings
 
 [ -f "build/$SO" ] || { echo "build/$SO missing: run ./build.sh" >&2; exit 1; }
 
 # 1. files: skin folder + .so, staged next to the live copy and swapped in with mv
-tar -C build/skin -cf - "$NAME" | ssh "$HOST" "rm -rf '$DEST.new' && mkdir -p /tmp/clouds && tar -C /tmp/clouds -xf - && mv '/tmp/clouds/$NAME' '$DEST.new'"
-scp -q "build/$SO" "$HOST:/tmp/clouds/$SO"
-ssh "$HOST" "cp '/tmp/clouds/$SO' '$DEST.new/$SO' && rm -rf '$DEST.old' && { [ -d '$DEST' ] && mv '$DEST' '$DEST.old' || true; } && mv '$DEST.new' '$DEST' && rm -rf '$DEST.old' /tmp/clouds"
+tar -C build/skin -cf - "$NAME" | ssh "$HOST" "rm -rf '$DEST.new' && mkdir -p /tmp/overcast && tar -C /tmp/overcast -xf - && mv '/tmp/overcast/$NAME' '$DEST.new'"
+scp -q "build/$SO" "$HOST:/tmp/overcast/$SO"
+ssh "$HOST" "cp '/tmp/overcast/$SO' '$DEST.new/$SO' && rm -rf '$DEST.old' && { [ -d '$DEST' ] && mv '$DEST' '$DEST.old' || true; } && mv '$DEST.new' '$DEST' && rm -rf '$DEST.old' /tmp/overcast"
 LOCAL_MD5=$(md5 -q "build/$SO" 2>/dev/null || md5sum "build/$SO" | cut -d' ' -f1)
 REMOTE_MD5=$(ssh "$HOST" "md5sum '$DEST/$SO'" | cut -d' ' -f1)
 [ "$LOCAL_MD5" = "$REMOTE_MD5" ] || { echo "md5 mismatch after copy" >&2; exit 1; }
@@ -46,12 +46,12 @@ set -e
 systemctl stop acvs
 trap 'systemctl start acvs' EXIT
 i=0; while pidof MPC >/dev/null && [ \$i -lt 30 ]; do sleep 1; i=\$((i + 1)); done
-cp '$SETTINGS' '$SETTINGS.bak-clouds_fx-'\$(date +%Y%m%d-%H%M%S)
-cat > /tmp/clouds-entry.xml <<'XML'
+cp '$SETTINGS' '$SETTINGS.bak-overcast-'\$(date +%Y%m%d-%H%M%S)
+cat > /tmp/overcast-entry.xml <<'XML'
 $ENTRY
 XML
 # same edit as the catalog installers: add the entry to <VALUE name="pluginList-arm"><KNOWNPLUGINS>
-awk -v entryfile=/tmp/clouds-entry.xml '
+awk -v entryfile=/tmp/overcast-entry.xml '
   BEGIN { while ((getline l < entryfile) > 0) entry = entry l }
   /<VALUE name="pluginList-arm">/ { inlist = 1 }
   inlist && /<\/KNOWNPLUGINS>/ && !done { ind = \$0; sub(/<.*/, "", ind); print ind "  " entry; done = 1; inlist = 0 }
@@ -60,6 +60,6 @@ awk -v entryfile=/tmp/clouds-entry.xml '
 [ "\$(grep -c 'file="$DEST/$SO"' '$SETTINGS.new')" = 1 ] || { rm -f '$SETTINGS.new'; echo "settings edit failed" >&2; exit 1; }
 mv '$SETTINGS.new' '$SETTINGS'
 sync
-rm -f /tmp/clouds-entry.xml
+rm -f /tmp/overcast-entry.xml
 echo "registered; starting MPC"
 EOF

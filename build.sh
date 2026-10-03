@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the plugin with the mpc-vst-plugins pipeline (Docker; on this Mac: Colima).
-#   ./build.sh          -> build/clouds_fx.so, build/skin/..., build/pluginlist-entry.xml
+#   ./build.sh          -> build/overcast.so, build/skin/..., build/pluginlist-entry.xml
 #   ./build.sh test     -> the framework's offline host test (ASan/UBSan, native compiler)
 # The framework is a submodule; patches/ are applied to a scratch copy. Docker's file sharing is
 # unreliable on the exFAT volume this repo lives on, so the build runs in a mirror on the internal
@@ -40,7 +40,7 @@ if ! docker run --rm --platform linux/arm/v7 arm32v7/gcc:12 true >/dev/null 2>&1
 fi
 "$BASH5" "$MV/tools/build_port.sh" "$STAGE/port/vst.json"
 docker run --rm -u "$(id -u):$(id -g)" -v "$STAGE/port":/w -w /w mpc-vst-html-art \
-  python3 skin/post_build.py "build/skin/Padbangers - VST - Clouds/Plugin Skins"
+  python3 skin/post_build.py "build/skin/Padbangers - VST - Overcast/Plugin Skins"
 mkdir -p build
 rsync -a --delete --exclude shadow_art --exclude '*.o' --exclude host_test "$STAGE/port/build/" build/
 echo "-> $HERE/build"

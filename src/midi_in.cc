@@ -62,7 +62,7 @@ Port* Open() {
   snd_seq_t* seq = NULL;
   if (api.open(&seq, "default", kSeqOpenInput, kSeqNonblock) < 0) return NULL;
   char name[32];
-  snprintf(name, sizeof name, "Clouds %d", next_number++);
+  snprintf(name, sizeof name, "Overcast %d", next_number++);
   api.set_client_name(seq, name);
   if (api.create_simple_port(seq, "MIDI In", kCapWrite | kCapSubsWrite, kTypeMidiGeneric | kTypeApplication) < 0) {
     api.close(seq);

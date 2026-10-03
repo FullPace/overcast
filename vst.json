@@ -1,21 +1,23 @@
 {
-  "name": "Clouds",
+  "name": "Overcast",
   "vendor": "Padbangers",
   "uid": "PbCl",
   "version": 1000,
-  "so": "clouds_fx.so",
+  "so": "overcast.so",
   "params": "params.json",
   "layout": "layout.conf",
   "art": "html",
   "effect": true,
   "defines": {
-    "OPTION_QLINK_ZONES": 1
+    "OPTION_QLINK_ZONES": 1,
+    "HAS_HOST_TRANSPORT": 1
   },
   "build": {
     "root": ".",
     "sources": [
       "src/engine.cc",
       "src/midi_in.cc",
+      "src/mod.cc",
       "third_party/parasites/clouds/dsp/correlator.cc",
       "third_party/parasites/clouds/dsp/granular_processor.cc",
       "third_party/parasites/clouds/dsp/mu_law.cc",

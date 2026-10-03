@@ -1,4 +1,4 @@
-# Clouds (Parasites) — runbook
+# Overcast (Clouds / Parasites) — runbook
 
 Everything needed to build, deploy and continue the Clouds insert effect lives in this folder. Read this first;
 `README.md` says what the plugin is. The Mac/Docker setup and the device basics are shared with Marbles
@@ -6,12 +6,24 @@ Everything needed to build, deploy and continue the Clouds insert effect lives i
 
 ## What this is
 
+**2026-10-03 redesign:** the mode is chosen in the plugin again (selector on the CLOUDS tab), and a second tab MOD
+holds two envelopes, two LFOs and an 8-slot matrix onto the module's CV inputs (`src/mod.{h,cc}`, params from
+`skin/gen_params.py`, LFO sync via `HAS_HOST_TRANSPORT`). The tab-as-mode mechanism described below was removed;
+its findings (Q-Link re-read on tab switch) stay valid. The background is the user's `skin/overcast_bg.jpg`
+(controls live in image y 110..576, between its bands).
+
+The plugin is called **Overcast** (renamed from "Clouds" on 2026-10-03: MPC folder `Padbangers - VST - Overcast`,
+`overcast.so`, MIDI port "Overcast N", same uid `PbCl`). The repo folder is still `clouds/`.
+MPC rewrites `MPC.settings` with multi-line `<PLUGIN>` elements: remove an entry by its whole element, not by
+line (removing the old Clouds entry by line left a file-less element with the same uid behind).
+
+
 Mutable Instruments Clouds with Matthias Puech's Parasites firmware (MIT, vendored in `third_party/parasites/`) as a
 native MPC OS insert effect, built with the sd88me/mpc-vst-plugins framework (submodule). Six modes: Granular,
 Stretch, Looping Delay, Spectral, Oliverb, Resonestor — one MPC tab each.
 
 Status (2026-09-30), confirmed by the user on the device: sound in all modes, the tabs switch the mode, per-mode
-names, Q-Links with option zones, In/Out Gain + limiter, MIDI in via the "Clouds N" port (connected, notes arriving
+names, Q-Links with option zones, In/Out Gain + limiter, MIDI in via the "Overcast N" port (connected, notes arriving
 not yet confirmed by ear). Not done: CPU bench, per-tab independent settings (discussed, not decided).
 
 ## Folder layout
@@ -32,7 +44,7 @@ not yet confirmed by ear). Not done: CPU bench, per-tab independent settings (di
 
 ```sh
 colima start                  # outside the Bash sandbox; the user's VPN must be off for image pulls
-./build.sh                    # -> build/clouds_fx.so + skin (runs skin/post_build.py)
+./build.sh                    # -> build/overcast.so + skin (runs skin/post_build.py)
 ./deploy.sh                   # copy to the MPC; --yes also registers it (restarts the app)
 python3 skin/gen_layout.py    # after changing the layout generator, then build again
 ```
@@ -47,7 +59,7 @@ mapped with the new file and says when the app must be restarted (ask the user t
 ## How it works (what was learned on the device)
 
 - **Effects get no MIDI.** MPC OS sends no MIDI to insert effects (verified: no event reached `Midi()`). Each
-  instance opens an ALSA sequencer client "Clouds N" with a writable port "MIDI In"; a MIDI track picks it as its
+  instance opens an ALSA sequencer client "Overcast N" with a writable port "MIDI In"; a MIDI track picks it as its
   output. The caps must be `WRITE | SUBS_WRITE` = bits 1 and **6** — with bit 5 (SUBS_READ) MPC listed it only as
   an input. libasound is `dlopen`ed (already in the MPC process), so the build needs no ALSA headers.
 - **Modes as MPC tabs.** A tab switch changes no parameter; MPC only reads the new page's **Q-Link parameters**
