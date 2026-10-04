@@ -245,7 +245,8 @@ def main_page():
 def mod_page():
     L = ["[tab MODULATION]", BACKGROUND]
     # left: two envelopes and two LFOs, one row each, the section name in front of the row
-    rows = [238, 353]       # env 1's trigger list level with the matrix's first row
+    rows = [238, 359]       # env 1's trigger list level with the matrix's first row; 121 apart, so the two rows'
+                            # 116 px knob frames don't touch (touching frames confused MPC's arrow-key navigation)
     lfo_rows = [506, 611]   # 50 px lower than before: the LFO rows lost their headings
     ex = [170, 295, 420, 545]
     for e in (1, 2):
@@ -266,13 +267,14 @@ def mod_page():
         L.append('knob cx=465 cy=%d r=%d label="" key=lfo%d_rate img=skin/knob_white.png' % (cy - 10, MOD_KNOB_R, l))
     # right: the matrix
     x0 = 770
-    L += [text(x0 + 100, 208, "SOURCE", "636463", size=1.2), text(x0 + 270, 208, "DESTINATION", "636463", size=1.2),
+    L += [text(x0 + 100, 208, "SOURCE", "636463", size=1.2), text(x0 + 260, 208, "DESTINATION", "636463", size=1.2),
           text(x0 + 420, 208, "AMOUNT", "636463", size=1.2)]
     for k in range(1, 9):
         cy = 238 + (k - 1) * 54
         L += [text(x0 + 8, cy, str(k), "1a1919", size=1.4),
               'popup cx=%d cy=%d w=140 h=36 label="" key=mod%d_src' % (x0 + 100, cy, k),
-              'popup cx=%d cy=%d w=170 h=36 label="" key=mod%d_dst' % (x0 + 270, cy, k),
+              # 150 wide and 10 px left: its two-column list opens under it, clear of the screen edge
+              'popup cx=%d cy=%d w=150 h=36 label="" key=mod%d_dst' % (x0 + 260, cy, k),
               # the slider bar (y 40-60 of its 100 px frame) starts level with the destination box's top edge
               'slider_h cx=%d cy=%d w=100 h=20 label="" key=mod%d_amt' % (x0 + 420, cy - 8, k)]
     L.append('qlinks "MODULATION" = ' + ",".join(QLINKS_MOD))
@@ -300,7 +302,7 @@ def qlink_bounds():
         return "%d %d %d %d" % (x0, y0 - 86, x1 - x0, y1 - y0)
     top, bottom = ROWS[0] - 50, ROWS[2] + R + 60
     main = [rect(c - 70, top, c + 70, bottom) for c in COLS] + [rect(GAIN_X - 70, top, GAIN_X + 70, bottom)]
-    mod = [rect(110, 208, 610, 322), rect(110, 323, 610, 437), rect(10, 466, 530, 660), rect(760, 220, 1260, 420)]
+    mod = [rect(110, 208, 610, 326), rect(110, 327, 610, 445), rect(10, 466, 530, 660), rect(760, 220, 1260, 420)]
     manual = [rect(30, 196, 270, 664)] + [rect(0, 196, 1, 197)] * 3
     return [main, mod, manual]
 

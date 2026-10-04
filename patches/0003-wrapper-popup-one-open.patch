@@ -1,44 +1,119 @@
 diff -ru a/wrapper/popup.h b/wrapper/popup.h
---- a/wrapper/popup.h	2026-10-04 13:16:30
-+++ b/wrapper/popup.h	2026-10-04 13:16:30
-@@ -13,9 +13,13 @@
+--- a/wrapper/popup.h	2026-10-04 13:32:32
++++ b/wrapper/popup.h	2026-10-04 13:32:59
+@@ -13,19 +13,45 @@
  
  static inline int popup_is(int i) { return PARAMS[i].popup_of >= 0; }
  
 -/* A popup field tapped: show/hide its option list (skin IndexedEnabling). 1 if i is a popup flag. */
 -static inline int popup_set(float *open, int i, float n) {
-+/* A popup field tapped: show/hide its option list (skin IndexedEnabling). 1 if i is a popup flag.
-+ * Opening one closes any other open list, so only one is ever open. */
-+static inline int popup_set(float *open, volatile int *holdFrames, int i, float n) {
-     if (!popup_is(i)) return 0;
-+    if (n > 0.5f)
+-    if (!popup_is(i)) return 0;
+-    open[i] = n > 0.5f ? 1.0f : 0.0f;
+-    return 1;
++/* What the host is told for a popup flag: 0.25 closed, 0.75 open (IndexedEnabling rounds them to 0 / 1). Off the
++ * ends, so the data wheel (which keeps the tapped field's focus) can move it both ways; MPC clamps at 0 and 1. */
++static inline float popup_flag_value(const float *open, int i) { return open[i] > 0.5f ? 0.75f : 0.25f; }
++
++/* A value for popup flag i. A tap on the field sends 0 or 1 (toggling what the host was told): 1 opens the list and
++ * closes any other, so only one is ever open, 0 closes it. Anything in between is the data wheel: it returns the
++ * step (-1 / +1) for the caller to apply to the list's enum (PARAMS[i].popup_of), else 0. push[j]: tell the host
++ * j's value again (from processReplacing; the host must not be re-entered from its own setParameter call). */
++static inline int popup_set(float *open, volatile char *push, int i, float n) {
++    push[i] = 1;   /* back to 0.25 / 0.75 after every event */
++    push[PARAMS[i].popup_of] = 1;
++    if (n > 0.001f && n < 0.999f) return n > popup_flag_value(open, i) ? 1 : -1;
++    if (n >= 0.999f)
 +        for (int j = 0; j < NPARAMS; j++)
-+            if (j != i && popup_is(j) && open[j] > 0.5f) { open[j] = 0; holdFrames[j] = 1; }
-     open[i] = n > 0.5f ? 1.0f : 0.0f;
-     return 1;
++            if (j != i && popup_is(j) && open[j] > 0.5f) { open[j] = 0; push[j] = 1; push[PARAMS[j].popup_of] = 1; }
++    open[i] = n >= 0.999f ? 1.0f : 0.0f;
++    return 0;
  }
-@@ -24,8 +28,11 @@
+ 
++/* While its list is open, the host is told the enum a little off its option, so no list button matches and every
++ * tap is a change the wrapper hears, the current option's too (which then closes the list). */
++static inline float popup_enum_value(const float *open, int i, float norm) {
++    for (int j = 0; j < NPARAMS; j++)
++        if (PARAMS[j].popup_of == i && open[j] > 0.5f) {
++            float off = 0.3f / (PARAMS[i].nopts - 1);
++            return norm + off <= 1.0f ? norm + off : norm - off;
++        }
++    return norm;
++}
++
+ /* An option of param i picked exactly (a list button). A Q-Link nudge lands between options and
   * must not call this, so turning the knob leaves the list open. Closes i's open popup; the host
   * hears "open = 0" from processReplacing via holdFrames[], not from inside its own setParameter call. */
- static inline void popup_picked(float *open, volatile int *holdFrames, int i) {
+-static inline void popup_picked(float *open, volatile int *holdFrames, int i) {
++static inline void popup_picked(float *open, volatile char *push, int i) {
 +    /* Any option picked closes every open list, not only i's: a pick can switch a mode panel (when=), and a list
 +     * left open over the other panel stays on screen until something closes it. */
 +    if (PARAMS[i].nopts < 2) return;
      for (int j = 0; j < NPARAMS; j++)
 -        if (PARAMS[j].popup_of == i && open[j] > 0.5f) { open[j] = 0; holdFrames[j] = 1; }
-+        if (popup_is(j) && open[j] > 0.5f) { open[j] = 0; holdFrames[j] = 1; }
++        if (popup_is(j) && open[j] > 0.5f) { open[j] = 0; push[j] = 1; push[PARAMS[j].popup_of] = 1; }
  }
  
  #endif
 diff -ru a/wrapper/vst2_wrap.c b/wrapper/vst2_wrap.c
---- a/wrapper/vst2_wrap.c	2026-10-04 13:16:30
-+++ b/wrapper/vst2_wrap.c	2026-10-04 13:16:30
-@@ -148,7 +148,7 @@
+--- a/wrapper/vst2_wrap.c	2026-10-04 13:32:32
++++ b/wrapper/vst2_wrap.c	2026-10-04 13:44:47
+@@ -99,6 +99,7 @@
+     signed char last_on[NPARAMS];  /* last "<key>_on" value told to the host, +1 (0 = unknown) */
+     volatile char need_update_display;  /* deferred audioMasterUpdateDisplay -- see setParameter() */
+     float open[NPARAMS];     /* popup "open" flags (popup.h): kept here, never sent to the DSP or saved */
++    volatile char push[NPARAMS];   /* popup.h: values to tell the host again from processReplacing */
+     char chunk[8192];
+ } wrap_t;
+ 
+@@ -162,7 +163,19 @@
      if (i < 0 || i >= NPARAMS) return;
      const param_t *p = &PARAMS[i];
      int nudge = 0;
 -    if (popup_set(w->open, i, n)) return;
-+    if (popup_set(w->open, w->holdFrames, i, n)) return;
++    if (popup_is(i)) {
++        int dir = popup_set(w->open, w->push, i, n), t = p->popup_of;
++        if (dir && PARAMS[t].nopts > 1) {   /* the wheel scrolls the list's enum; the list stays as it is */
++            int idx = (int)lroundf(get_norm(w, t) * (PARAMS[t].nopts - 1)) + dir;
++            if (idx < 0) idx = 0;
++            if (idx > PARAMS[t].nopts - 1) idx = PARAMS[t].nopts - 1;
++            norm_to_str(&PARAMS[t], (float)idx / (PARAMS[t].nopts - 1), buf, sizeof buf);
++            g_api->set_param(w->dsp, PARAMS[t].key, buf);
++            w->shadow[t] = -1;
++            w->need_update_display = 1;
++        }
++        return;
++    }
      if (p->step_target >= 0) {
          /* A momentary nudge of ANOTHER param (see gen_vst.py's step_of/step_delta comment). Reads
           * the target's CURRENT value straight from the DSP, not our own cached norm, so it's
+@@ -208,12 +221,19 @@
+     g_api->set_param(w->dsp, PARAMS[i].key, buf);
+     w->shadow[i] = ((p->int_display && !p->nopts) || (OPTION_QLINK_ZONES && p->nopts > 1)) ? clamp01(n) : -1;
+     if (PARAMS[i].momentary && n > 0.5f) w->holdFrames[i] = PARAMS[i].hold_ms > 0 ? (int)(PARAMS[i].hold_ms * 44.1f) : 1;
+-    if (!nudge) popup_picked(w->open, w->holdFrames, i);   /* a list pick closes it; a Q-Link nudge doesn't */
++    if (!nudge) popup_picked(w->open, w->push, i);   /* a list pick closes it; a Q-Link nudge doesn't */
+     w->need_update_display = 1;   /* deferred to processReplacing(), see the step_target branch above */
+ }
+ 
+-static float getParameter(AEffect *e, int32_t i) { return get_norm(e->object, i); }
++/* What the host sees: popup flags and the enum of an open list differ from the stored values (popup.h). */
++static float host_value(wrap_t *w, int i) {
++    if (i < 0 || i >= NPARAMS) return 0;
++    if (popup_is(i)) return popup_flag_value(w->open, i);
++    return popup_enum_value(w->open, i, get_norm(w, i));
++}
+ 
++static float getParameter(AEffect *e, int32_t i) { return host_value(e->object, i); }
++
+ static void update_tempo(wrap_t *w) {
+     VstTimeInfo *ti = (VstTimeInfo *)w->master(&w->fx, audioMasterGetTime, 0, kVstTempoValid, 0, 0);
+     if (!ti || !(ti->flags & kVstTempoValid) || ti->tempo <= 0) return;
+@@ -260,6 +280,8 @@
+      * setParameter, so the host is not re-entered from its own call. */
+     for (int i = 0; i < NPARAMS; i++)
+         if (w->holdFrames[i] > 0 && (w->holdFrames[i] -= n) <= 0) { w->holdFrames[i] = 0; w->master(&w->fx, audioMasterAutomate, i, 0, 0, 0.0f); }
++    for (int i = 0; i < NPARAMS; i++)
++        if (w->push[i]) { w->push[i] = 0; w->master(&w->fx, audioMasterAutomate, i, 0, 0, host_value(w, i)); }
+     if (w->need_update_display) {
+         w->need_update_display = 0;
+         w->master(&w->fx, audioMasterUpdateDisplay, 0, 0, 0, 0.0f);
