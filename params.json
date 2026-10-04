@@ -661,6 +661,22 @@
       "unit": "%",
       "display": "int",
       "default": 0.0
+    },
+    {
+      "key": "manual_page",
+      "name": "Manual",
+      "options": [
+        "Basics",
+        "MIDI",
+        "Modulation",
+        "Granular",
+        "Stretch",
+        "Looping Delay",
+        "Spectral",
+        "Oliverb",
+        "Resonestor"
+      ],
+      "default": 0
     }
   ],
   "sections": [

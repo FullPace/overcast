@@ -10,8 +10,8 @@
 
 /* mode tabs and quality segments: light keys with dark text, the selected one teal with white text */
 .seg-bg { stroke: #b4b5b4; stroke-width: 1; }
-.seg-tx { fill: #1a1919; font-weight: 700; letter-spacing: 0.04em; }
-.on .seg-tx { fill: #ffffff; }
+/* no fill here: the text takes the theme's colours (theme_seg_active_tx white, theme_ink_dim when off) */
+.seg-tx { font-weight: 700; letter-spacing: 0.04em; }
 
 /* toggles (Freeze, Reverse, MIDI Pitch): a dark slot whose thumb turns teal when on */
 .pill-track { fill: #636463; stroke: #4a4b4a; }

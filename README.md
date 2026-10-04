@@ -8,10 +8,12 @@ Matthias Puech's Parasites firmware, as a native MPC OS insert effect, with a mo
   onto the module's CV inputs: Position, Size, Pitch, Density, Texture, Blend, Spread, Feedback, Reverb, Freeze and
   Trigger.
 - **Play it melodically** like the module's V/OCT and TRIG inputs, from a MIDI track.
-- In/Out Gain with an output limiter, Q-Link support on both pages.
+- In/Out Gain with an output limiter, Q-Link support on every page.
+- A built-in manual on its own tab: basics, MIDI, modulation and every mode.
 
 ![Overcast main page](docs/overcast-main.png)
 ![Overcast modulation page](docs/overcast-modulation.png)
+![Overcast manual page](docs/overcast-manual.png)
 
 ## Requirements
 
@@ -49,8 +51,10 @@ Matthias Puech's Parasites firmware, as a native MPC OS insert effect, with a mo
 | Blend | Feedback | Reverb | Freeze |
 | Mode | Quality | MIDI Pitch | Reverse |
 
-Tips: in Granular, Density at 12 o'clock means no grains (clockwise: regular, counter-clockwise: random). Freeze stops
+Tips: in Granular, Density at 12 o'clock means no grains (counter-clockwise: steady rate, clockwise: random). Freeze stops
 recording into the buffer — with Blend below 100 % you still hear the dry input next to the frozen cloud.
+
+**MANUAL tab:** a short manual on the device: basics, MIDI, modulation and each mode.
 
 **MODULATION tab:** envelopes and LFOs on the left, the matrix on the right (source → destination → amount,
 −100…+100 %). With SYNC on, an LFO's rate knob picks the note value (4 bars … 1/32) and shows it under the knob. Freeze and Trigger destinations are gates: on above 50 %. An LFO square wave on Trigger clocks grains

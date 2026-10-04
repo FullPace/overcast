@@ -50,7 +50,8 @@ enum Param {
   P_ENV_FIRST = P_MOD_FIRST,
   P_LFO_FIRST = P_ENV_FIRST + mod::kNumEnvs * 5,
   P_SLOT_FIRST = P_LFO_FIRST + mod::kNumLfos * 4,
-  P_LAST = P_SLOT_FIRST + mod::kNumSlots * 3
+  P_MANUAL = P_SLOT_FIRST + mod::kNumSlots * 3,   // the MANUAL tab's topic; skin only, the engine ignores it
+  P_LAST
 };
 
 enum Kind { CONTINUOUS, OPTION, MOMENTARY };
@@ -105,7 +106,7 @@ const ModeNames kNames[] = {
   { "trigger", { "Trigger", "Loop Sync", "Tap", "Glitch", "Clock", "Strike" } },
 };
 
-char mod_keys[P_LAST - P_MOD_FIRST][16];
+char mod_keys[P_MANUAL - P_MOD_FIRST][16];
 
 void InitModParams() {
   static bool done = false;
@@ -135,6 +136,7 @@ void InitModParams() {
       kParams[P_MOD_FIRST + k] = { mod_keys[k], 0.0f, j == 2 ? CONTINUOUS : OPTION };   // amount in %
     }
   }
+  kParams[P_MANUAL] = { "manual_page", 0, OPTION };
 }
 
 template<typename T> T Clamp(T x, T lo, T hi) { return x < lo ? lo : (x > hi ? hi : x); }

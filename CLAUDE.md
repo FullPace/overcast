@@ -58,7 +58,7 @@ Homebrew: `docker colima docker-buildx bash`. Docker runs in Colima, not Docker 
 ## Device facts (the developer's MPC X, `ssh mpcx`)
 
 - A button-remap shim loads via `/etc/ld.so.preload`; check it is still loaded after restarts:
-  `grep -c shim_remap6 /proc/$(pidof MPC)/maps` (≈7). Never put it into an `LD_PRELOAD` as well.
+  `grep -c shim_remap7 /proc/$(pidof MPC)/maps` (≈7). Never put it into an `LD_PRELOAD` as well.
 - App log: `journalctl -u acvs` (the engine logs `Overcast: mode a -> b`). Crashes show as
   `code=dumped, status=11/SEGV`.
 - BusyBox userland, no python, no curl. Settings: `/media/az01-internal/Settings/MPC/MPC.settings`.
@@ -130,6 +130,11 @@ mapped with the new file and says when the app must be restarted (ask the user t
   Texture Spread Reverb Root | Freeze Reverse Quality OutGain. Option params use Q-Link zones (patch 0002).
 - A user-designed background: 1280×628 px PNG/JPG as `skin/background.png`, to be added as the first `art` line of
   each tab (`art file=skin/background.png fit=cover`). Not added yet.
+
+- Tabs (1.0.3): OVERCAST, MODULATION, MANUAL. MANUAL is static text per topic (`MANUAL` in `gen_layout.py`,
+  `when=manual_page:<i>`); `manual_page` is the last param, skin only. Pill images keep their aspect ratio, so the
+  taller ENV/LFO tags have their own `pill_*_section.png`. `post_build.py` finds the Freeze toggle by its image size
+  (`_64x64`): keep that in step with its `w=`/`h=` in `gen_layout.py`.
 
 ## Next steps / open
 

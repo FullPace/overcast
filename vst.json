@@ -2,7 +2,7 @@
   "name": "Overcast",
   "vendor": "Padbangers",
   "uid": "PbCl",
-  "version": 1002,
+  "version": 1003,
   "so": "overcast.so",
   "params": "params.json",
   "layout": "layout.conf",

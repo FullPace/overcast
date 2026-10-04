@@ -15,7 +15,9 @@ DIVISIONS = ["4 Bars", "2 Bars", "1 Bar", "1/2", "1/4", "1/8", "1/16", "1/32"]
 SOURCES = ["Off", "LFO 1", "LFO 2", "Env 1", "Env 2", "Velocity"]
 DESTS = ["Off", "Position", "Size", "Pitch", "Density", "Texture", "Blend", "Spread", "Feedback", "Reverb",
          "Freeze", "Trigger"]
-MOD_KEY = re.compile(r"^(env\d|lfo\d|mod\d|page_)")   # mod\d, not "mode"
+MOD_KEY = re.compile(r"^(env\d|lfo\d|mod\d|page_|manual_)")   # mod\d, not "mode"
+MANUAL_PAGES = ["Basics", "MIDI", "Modulation", "Granular", "Stretch", "Looping Delay", "Spectral", "Oliverb",
+                "Resonestor"]
 
 
 def mod_params():
@@ -46,6 +48,8 @@ def mod_params():
             {"key": "mod%d_amt" % m, "name": "Mod %d Amount" % m, "min": -100.0, "max": 100.0, "unit": "%",
              "display": "int", "default": 0.0},
         ]
+    # last, so saved projects keep their values: the MANUAL tab's topic (skin only)
+    out.append({"key": "manual_page", "name": "Manual", "options": MANUAL_PAGES, "default": 0})
     return out
 
 
