@@ -1,0 +1,44 @@
+diff -ru a/wrapper/popup.h b/wrapper/popup.h
+--- a/wrapper/popup.h	2026-10-04 13:16:30
++++ b/wrapper/popup.h	2026-10-04 13:16:30
+@@ -13,9 +13,13 @@
+ 
+ static inline int popup_is(int i) { return PARAMS[i].popup_of >= 0; }
+ 
+-/* A popup field tapped: show/hide its option list (skin IndexedEnabling). 1 if i is a popup flag. */
+-static inline int popup_set(float *open, int i, float n) {
++/* A popup field tapped: show/hide its option list (skin IndexedEnabling). 1 if i is a popup flag.
++ * Opening one closes any other open list, so only one is ever open. */
++static inline int popup_set(float *open, volatile int *holdFrames, int i, float n) {
+     if (!popup_is(i)) return 0;
++    if (n > 0.5f)
++        for (int j = 0; j < NPARAMS; j++)
++            if (j != i && popup_is(j) && open[j] > 0.5f) { open[j] = 0; holdFrames[j] = 1; }
+     open[i] = n > 0.5f ? 1.0f : 0.0f;
+     return 1;
+ }
+@@ -24,8 +28,11 @@
+  * must not call this, so turning the knob leaves the list open. Closes i's open popup; the host
+  * hears "open = 0" from processReplacing via holdFrames[], not from inside its own setParameter call. */
+ static inline void popup_picked(float *open, volatile int *holdFrames, int i) {
++    /* Any option picked closes every open list, not only i's: a pick can switch a mode panel (when=), and a list
++     * left open over the other panel stays on screen until something closes it. */
++    if (PARAMS[i].nopts < 2) return;
+     for (int j = 0; j < NPARAMS; j++)
+-        if (PARAMS[j].popup_of == i && open[j] > 0.5f) { open[j] = 0; holdFrames[j] = 1; }
++        if (popup_is(j) && open[j] > 0.5f) { open[j] = 0; holdFrames[j] = 1; }
+ }
+ 
+ #endif
+diff -ru a/wrapper/vst2_wrap.c b/wrapper/vst2_wrap.c
+--- a/wrapper/vst2_wrap.c	2026-10-04 13:16:30
++++ b/wrapper/vst2_wrap.c	2026-10-04 13:16:30
+@@ -148,7 +148,7 @@
+     if (i < 0 || i >= NPARAMS) return;
+     const param_t *p = &PARAMS[i];
+     int nudge = 0;
+-    if (popup_set(w->open, i, n)) return;
++    if (popup_set(w->open, w->holdFrames, i, n)) return;
+     if (p->step_target >= 0) {
+         /* A momentary nudge of ANOTHER param (see gen_vst.py's step_of/step_delta comment). Reads
+          * the target's CURRENT value straight from the DSP, not our own cached norm, so it's

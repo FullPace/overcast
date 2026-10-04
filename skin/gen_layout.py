@@ -65,8 +65,8 @@ QLINKS_MOD = ["env1_attack", "env1_decay", "env1_sustain", "env1_release",
 
 THEME = [
     "art_css=skin/clouds.css",
-    # ink = MPC's own name labels (removed by post_build.py); ink_dim = the value text under the controls
-    "theme_bg=e6e6e3", "theme_panel=e6e6e3", "theme_line=b4b5b4", "theme_ink=ffffff", "theme_ink_dim=4a4b4a",
+    # ink = popup list entries (and MPC's own name labels, removed by post_build.py); ink_dim = the value text
+    "theme_bg=e6e6e3", "theme_panel=e6e6e3", "theme_line=b4b5b4", "theme_ink=1a1919", "theme_ink_dim=4a4b4a",
     "theme_ink_faint=b4b5b4", "theme_accent=c83d58", "theme_accent_hi=c83d58", "theme_knob_face=e9e9e6",
     "theme_knob_ring=d7d8d6", "theme_knob_dot=1a1919", "theme_lcd=ffffff", "theme_seg_active=009797",
     "theme_seg_inactive=f4f4f2", "theme_seg_active_tx=ffffff", "theme_box=ffffff", "theme_btn_bg=c83d58",
