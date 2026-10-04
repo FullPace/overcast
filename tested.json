@@ -1,5 +1,11 @@
 [
   {
+    "version": "1.0.6",
+    "device": "Akai MPC X",
+    "firmware": "MPC OS 3.9.1",
+    "date": "2026-10-04"
+  },
+  {
     "version": "1.0.5",
     "device": "Akai MPC X",
     "firmware": "MPC OS 3.9.1",
