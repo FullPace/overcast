@@ -73,6 +73,37 @@ def compact_sliders(skins, tui, defs):
 
 
 SEG_MARGIN = 3
+PAGE_W, PAGE_H = 1280, 628
+
+
+def add_popup_catchers(tui, defs):
+    """A tap outside an open drop-down list closes it: under each list (shown with it, like the list) an invisible
+    area over the whole page, bound to the list's open flag with the field's own action (Toggle Switch: the open
+    flag goes to 0). The controls under it take taps again once the list is closed."""
+    catcher = "shPopCatcher"
+    if not any(d["key"] == catcher for d in defs):
+        field = next(d for d in defs if d["key"].startswith("shPopField"))
+        value = copy.deepcopy(field["value"])
+        value["actions"] = [a for a in value["actions"] if a["onAction"] == "Mouse Down"]
+        value["componentsData"] = []
+        defs.append({"key": catcher, "value": value})
+
+    def walk(node):
+        if isinstance(node, list):
+            for k in range(len(node) - 1, -1, -1):
+                v = node[k]
+                if isinstance(v, dict) and str(v.get("componentData", {}).get("type", "")).startswith("shPopPanel_"):
+                    c = copy.deepcopy(v)
+                    c["componentData"]["type"] = catcher
+                    c["componentData"]["name"] = "list catcher"
+                    c["bounds"]["bounds"] = "0 0 %d %d" % (PAGE_W, PAGE_H)
+                    node.insert(k, c)
+            for v in node:
+                walk(v)
+        elif isinstance(node, dict):
+            for v in node.values():
+                walk(v)
+    walk(tui["pageData"])
 
 
 def frame_segment_groups(tui, defs):
@@ -208,6 +239,7 @@ def main(skins):
         d["value"].pop("_def_key", None)
     compact_sliders(skins, tui, defs)
     frame_segment_groups(tui, defs)
+    add_popup_catchers(tui, defs)
 
     # Q-Link indicators: the MPC highlights the screen area of the Q-Link column being turned (stock skins do this;
     # the framework switches it off). Rectangles per tab come from gen_layout.py.

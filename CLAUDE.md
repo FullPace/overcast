@@ -138,7 +138,9 @@ mapped with the new file and says when the app must be restarted (ask the user t
 
 - Drop-downs (1.0.5, `patches/0003`): the host sees a popup's open flag as 0.25 / 0.75, so data wheel clicks on
   the tapped field arrive both ways (MPC clamps at 0 and 1) and step the list; a tap sends 0 / 1. While a list is
-  open, its enum is reported slightly off its option, so tapping the current entry is a change too (and closes).
+  open. A tap on the current entry sends nothing (no change), so `post_build.py` puts an invisible page-sized
+  catcher under each open list (same open flag, Toggle Switch): a tap outside closes it (1.0.6). Reporting the enum
+  off its option doesn't work: MPC rounds it back to the button, or shows no selection when outside 0..1.
 - `post_build.py` (1.0.5): sliders shrink to bar + value (overlapping 116 px frames made the arrow keys skip rows),
   teal filmstrip when focused; option bars get one focus frame around the whole group; the snowflake gets a teal
   rim and turns white when focused and off. Touching control frames confuse MPC's arrow-key navigation.

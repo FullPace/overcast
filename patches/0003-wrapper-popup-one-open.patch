@@ -1,7 +1,7 @@
 diff -ru a/wrapper/popup.h b/wrapper/popup.h
 --- a/wrapper/popup.h	2026-10-04 13:32:32
-+++ b/wrapper/popup.h	2026-10-04 13:32:59
-@@ -13,19 +13,45 @@
++++ b/wrapper/popup.h	2026-10-04 14:44:27
+@@ -13,19 +13,39 @@
  
  static inline int popup_is(int i) { return PARAMS[i].popup_of >= 0; }
  
@@ -29,16 +29,10 @@ diff -ru a/wrapper/popup.h b/wrapper/popup.h
 +    return 0;
  }
  
-+/* While its list is open, the host is told the enum a little off its option, so no list button matches and every
-+ * tap is a change the wrapper hears, the current option's too (which then closes the list). */
-+static inline float popup_enum_value(const float *open, int i, float norm) {
-+    for (int j = 0; j < NPARAMS; j++)
-+        if (PARAMS[j].popup_of == i && open[j] > 0.5f) {
-+            float off = 0.3f / (PARAMS[i].nopts - 1);
-+            return norm + off <= 1.0f ? norm + off : norm - off;
-+        }
-+    return norm;
-+}
++/* A tap on the current entry is no change, so MPC sends nothing and the list stays open; the skin closes lists with
++ * a tap outside them instead (Overcast/Glass Spheres skin/post_build.py: add_popup_catchers). Reporting the enum
++ * off its option while open doesn't help: MPC rounds it back to that button, or (outside 0..1) shows no selection,
++ * and the wheel then seems not to move the list. */
 +
  /* An option of param i picked exactly (a list button). A Q-Link nudge lands between options and
   * must not call this, so turning the knob leaves the list open. Closes i's open popup; the host
@@ -56,7 +50,7 @@ diff -ru a/wrapper/popup.h b/wrapper/popup.h
  #endif
 diff -ru a/wrapper/vst2_wrap.c b/wrapper/vst2_wrap.c
 --- a/wrapper/vst2_wrap.c	2026-10-04 13:32:32
-+++ b/wrapper/vst2_wrap.c	2026-10-04 13:44:47
++++ b/wrapper/vst2_wrap.c	2026-10-04 14:44:27
 @@ -99,6 +99,7 @@
      signed char last_on[NPARAMS];  /* last "<key>_on" value told to the host, +1 (0 = unknown) */
      volatile char need_update_display;  /* deferred audioMasterUpdateDisplay -- see setParameter() */
@@ -96,11 +90,11 @@ diff -ru a/wrapper/vst2_wrap.c b/wrapper/vst2_wrap.c
  }
  
 -static float getParameter(AEffect *e, int32_t i) { return get_norm(e->object, i); }
-+/* What the host sees: popup flags and the enum of an open list differ from the stored values (popup.h). */
++/* What the host sees: popup flags differ from the stored values (popup.h). */
 +static float host_value(wrap_t *w, int i) {
 +    if (i < 0 || i >= NPARAMS) return 0;
 +    if (popup_is(i)) return popup_flag_value(w->open, i);
-+    return popup_enum_value(w->open, i, get_norm(w, i));
++    return get_norm(w, i);
 +}
  
 +static float getParameter(AEffect *e, int32_t i) { return host_value(e->object, i); }
